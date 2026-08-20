@@ -1,0 +1,35 @@
+name: Run F&O Scraper Separately
+
+on:
+  schedule:
+    # यह रोज़ शाम 6:30 बजे (IST) अपने-आप चलेगा
+    - cron: '0 13 * * 1-5'
+  workflow_dispatch: # इससे आप GitHub पर 'Run workflow' बटन दबाकर कभी भी खुद चला सकते हैं
+
+jobs:
+  run-fo:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests pandas
+
+      - name: Run F&O Scraper
+        run: python fo_scraper.py
+
+      - name: Save F&O Data to GitHub
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add fo_data/
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update F&O Data [skip ci]" && git push)
