@@ -4,36 +4,49 @@ import os
 import pandas as pd
 import io
 
-def fetch_and_process():
-    today = datetime.datetime.now()
-    date_str = today.strftime("%d%m%Y")
-    file_date = today.strftime("%Y-%m-%d")
-
-    url = f"https://archives.nseindia.com/products/content/sec_bhavdata_full_{date_str}.csv"
+def fetch_last_month():
+    # पिछले 30 दिनों का डेटा फ़ेच करने के लिए
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     }
+    
+    os.makedirs("data", exist_ok=True)
+    success_count = 0
 
-    try:
-        response = requests.get(url, headers=headers, timeout=15)
+    print("🚀 Fetching last 30 days data...")
+
+    for days_back in range(0, 30):
+        target_date = datetime.datetime.now() - datetime.timedelta(days=days_back)
+        date_str = target_date.strftime("%d%m%Y")
+        file_date = target_date.strftime("%Y-%m-%d")
         
-        if response.status_code == 200 and len(response.content) > 1000:
-            df = pd.read_csv(io.StringIO(response.content.decode('utf-8')))
-            df.columns = df.columns.str.strip()
+        output_path = f"data/{file_date}.csv"
+        
+        # अगर फ़ाइल पहले से है, तो दुबारा डाउनलोड न करें
+        if os.path.exists(output_path):
+            continue
 
-            if 'SERIES' in df.columns:
-                df = df[df['SERIES'].str.strip() == 'EQ']
+        url = f"https://archives.nseindia.com/products/content/sec_bhavdata_full_{date_str}.csv"
 
-            os.makedirs("data", exist_ok=True)
-            output_path = f"data/{file_date}.csv"
-            df.to_csv(output_path, index=False)
-            print(f"✅ Data saved: {output_path}")
-        else:
-            print(f"⚠️ No data for {file_date} (Market Holiday / Weekend)")
+        try:
+            response = requests.get(url, headers=headers, timeout=10)
             
-    except Exception as e:
-        print(f"❌ Error: {e}")
+            if response.status_code == 200 and len(response.content) > 1000:
+                df = pd.read_csv(io.StringIO(response.content.decode('utf-8')))
+                df.columns = df.columns.str.strip()
+
+                if 'SERIES' in df.columns:
+                    df = df[df['SERIES'].str.strip() == 'EQ']
+
+                df.to_csv(output_path, index=False)
+                print(f"✅ Downloaded: {file_date}")
+                success_count += 1
+            else:
+                print(f"⏩ Skipped (Weekend/Holiday): {file_date}")
+        except Exception as e:
+            print(f"❌ Error for {file_date}: {e}")
+
+    print(f"\n🎉 Finished! Total new files added: {success_count}")
 
 if __name__ == "__main__":
-    fetch_and_process()
-
+    fetch_last_month()
