@@ -9,7 +9,6 @@ import zoneinfo
 def fetch_fo_data(days_to_fetch=10):
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept-Language': 'en-US,en;q=0.9',
         'Accept': '*/*'
     }
     
@@ -19,12 +18,12 @@ def fetch_fo_data(days_to_fetch=10):
     ist_tz = zoneinfo.ZoneInfo("Asia/Kolkata")
     now_ist = datetime.datetime.now(ist_tz)
 
-    print(f"🚀 F&O Data Fetching Started (Last {days_to_fetch} Days)...")
+    print(f"🚀 F&O UDiFF Data Fetching (Last {days_to_fetch} Days)...")
 
     for days_back in range(0, days_to_fetch):
         target_date = now_ist - datetime.timedelta(days=days_back)
         
-        # वीकेंड (शनिवार/रविवार) को स्किप करें
+        # वीकेंड स्किप
         if target_date.weekday() >= 5:
             continue
 
@@ -32,17 +31,19 @@ def fetch_fo_data(days_to_fetch=10):
         output_path = os.path.join(output_folder, f"{file_date}_FO.csv")
 
         if os.path.exists(output_path):
-            print(f"⏩ F&O File Already Exists: {file_date}")
+            print(f"⏩ File Already Exists: {file_date}")
             continue
 
-        date_str_upper = target_date.strftime("%d%b%Y").upper() # उदा: 20AUG2026
-        month_str_upper = target_date.strftime("%b").upper()     # उदा: AUG
-        year_str = target_date.strftime("%Y")                    # उदा: 2026
+        date_str = target_date.strftime("%Y%m%d") # উদ: 20260820
+        date_str_upper = target_date.strftime("%d%b%Y").upper() # Ud: 20AUG2026
+        month_str_upper = target_date.strftime("%b").upper()     # Ud: AUG
+        year_str = target_date.strftime("%Y")                    # Ud: 2026
         
-        # NSE F&O URLs (Primary & Alternative)
+        # NSE F&O UDiFF + Legacy URLs
         urls = [
-            f"https://archives.nseindia.com/content/historical/DERIVATIVES/{year_str}/{month_str_upper}/fo{date_str_upper}bhav.csv.zip",
-            f"https://nsearchives.nseindia.com/content/historical/DERIVATIVES/{year_str}/{month_str_upper}/fo{date_str_upper}bhav.csv.zip"
+            f"https://archives.nseindia.com/content/fo/BhavCopy_NSE_FO_0_0_0_{date_str}_F_0000.csv.zip",
+            f"https://nsearchives.nseindia.com/content/fo/BhavCopy_NSE_FO_0_0_0_{date_str}_F_0000.csv.zip",
+            f"https://archives.nseindia.com/content/historical/DERIVATIVES/{year_str}/{month_str_upper}/fo{date_str_upper}bhav.csv.zip"
         ]
 
         downloaded = False
@@ -54,7 +55,8 @@ def fetch_fo_data(days_to_fetch=10):
                     df = pd.read_csv(io.BytesIO(response.content), compression='zip')
                     df.columns = df.columns.str.strip()
 
-                    if 'SYMBOL' in df.columns:
+                    # UDiFF फ़ॉर्मेट में कॉलम के नाम अलग हो सकते हैं
+                    if len(df) > 100:
                         df.to_csv(output_path, index=False)
                         print(f"✅ F&O Data Saved: {file_date}")
                         downloaded = True
