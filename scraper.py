@@ -3,11 +3,11 @@ import datetime
 import os
 import pandas as pd
 import io
+import time
 
 def fetch_last_month():
-    # पिछले 30 दिनों का डेटा फ़ेच करने के लिए
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     }
     
     os.makedirs("data", exist_ok=True)
@@ -22,8 +22,9 @@ def fetch_last_month():
         
         output_path = f"data/{file_date}.csv"
         
-        # अगर फ़ाइल पहले से है, तो दुबारा डाउनलोड न करें
+        # फ़ाइल पहले से है तो स्किप करें
         if os.path.exists(output_path):
+            print(f"⏩ Already exists: {file_date}")
             continue
 
         url = f"https://archives.nseindia.com/products/content/sec_bhavdata_full_{date_str}.csv"
@@ -42,11 +43,14 @@ def fetch_last_month():
                 print(f"✅ Downloaded: {file_date}")
                 success_count += 1
             else:
-                print(f"⏩ Skipped (Weekend/Holiday): {file_date}")
+                print(f"⏩ Skipped: {file_date}")
         except Exception as e:
-            print(f"❌ Error for {file_date}: {e}")
+            print(f"⚠️ Error on {file_date}: {e}")
 
-    print(f"\n🎉 Finished! Total new files added: {success_count}")
+        # NSE सर्वर ब्लॉक न करे इसलिए 1 सेकंड की देरी
+        time.sleep(1)
+
+    print(f"\n🎉 Finished! Processed successfully.")
 
 if __name__ == "__main__":
     fetch_last_month()
