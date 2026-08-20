@@ -60,7 +60,7 @@ def fetch_all_days_data(days_to_fetch=5000):
             pass
 
         # NSE Server IP Safe Delay
-        time.sleep(0.5)
+        time.sleep(0.8)
 
 if __name__ == "__main__":
     fetch_all_days_data(5000)
