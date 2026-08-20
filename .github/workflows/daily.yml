@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -30,7 +32,7 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git pull origin main --rebase
           git add -A
           git diff-index --quiet HEAD || git commit -m "Auto-updated NSE Data"
-          git push
-
+          git push origin main
