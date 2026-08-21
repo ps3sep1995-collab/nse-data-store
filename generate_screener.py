@@ -42,7 +42,7 @@ def generate_delivery_screener():
     sorted_symbols = sorted(list(all_symbols_set))
     date_wise_results = {}
     
-    for d in sorted_dates[:30]:  # पिछले 30 दिनों का इतिहास
+    for d in sorted_dates[:30]:  # पिछले 30 दिनों का डेटा
         results = []
         for symbol, df in all_stocks_data.items():
             if d in df['Date'].values:
@@ -51,39 +51,40 @@ def generate_delivery_screener():
                 
                 if pos >= 10:
                     latest_row = df.iloc[pos]
-                    today_deliv = latest_row['DELIV_QTY']
+                    today_deliv = float(latest_row['DELIV_QTY'])
                     
                     prev_df = df.iloc[pos-10:pos]
-                    avg_2d = prev_df.iloc[-2:]['DELIV_QTY'].mean()
-                    avg_5d = prev_df.iloc[-5:]['DELIV_QTY'].mean()
-                    avg_7d = prev_df.iloc[-7:]['DELIV_QTY'].mean()
-                    avg_10d = prev_df['DELIV_QTY'].mean()
+                    avg_2d = float(prev_df.iloc[-2:]['DELIV_QTY'].mean())
+                    avg_5d = float(prev_df.iloc[-5:]['DELIV_QTY'].mean())
+                    avg_7d = float(prev_df.iloc[-7:]['DELIV_QTY'].mean())
+                    avg_10d = float(prev_df['DELIV_QTY'].mean())
 
-                    r2 = (today_deliv / avg_2d) if avg_2d > 0 else 0
-                    r5 = (today_deliv / avg_5d) if avg_5d > 0 else 0
-                    r7 = (today_deliv / avg_7d) if avg_7d > 0 else 0
-                    r10 = (today_deliv / avg_10d) if avg_10d > 0 else 0
+                    r2 = (today_deliv / avg_2d) if avg_2d > 0 else 0.0
+                    r5 = (today_deliv / avg_5d) if avg_5d > 0 else 0.0
+                    r7 = (today_deliv / avg_7d) if avg_7d > 0 else 0.0
+                    r10 = (today_deliv / avg_10d) if avg_10d > 0 else 0.0
 
                     max_spike = max(r2, r5, r7, r10)
+                    is_2x_val = bool(r2 >= 2.0 or r5 >= 2.0 or r7 >= 2.0 or r10 >= 2.0)
 
                     results.append({
-                        'Date': d,
-                        'Symbol': symbol,
-                        'Close_Price': round(latest_row['CLOSE_PRICE'], 2),
+                        'Date': str(d),
+                        'Symbol': str(symbol),
+                        'Close_Price': round(float(latest_row['CLOSE_PRICE']), 2),
                         'Traded_Qty': int(latest_row['TTL_TRD_QNTY']),
-                        'Turnover_Lacs': round(latest_row['TURNOVER_LACS'], 2),
+                        'Turnover_Lacs': round(float(latest_row['TURNOVER_LACS']), 2),
                         'Today_Deliv': int(today_deliv),
-                        'Deliv_Per': round(latest_row['DELIV_PER'], 2),
+                        'Deliv_Per': round(float(latest_row['DELIV_PER']), 2),
                         'Avg_2D': int(avg_2d),
                         'Avg_5D': int(avg_5d),
                         'Avg_7D': int(avg_7d),
                         'Avg_10D': int(avg_10d),
-                        'R_2D': round(r2, 2),
-                        'R_5D': round(r5, 2),
-                        'R_7D': round(r7, 2),
-                        'R_10D': round(r10, 2),
-                        'Max_Spike': round(max_spike, 2),
-                        'Is_2x': (r2 >= 2.0 or r5 >= 2.0 or r7 >= 2.0 or r10 >= 2.0)
+                        'R_2D': round(float(r2), 2),
+                        'R_5D': round(float(r5), 2),
+                        'R_7D': round(float(r7), 2),
+                        'R_10D': round(float(r10), 2),
+                        'Max_Spike': round(float(max_spike), 2),
+                        'Is_2x': is_2x_val
                     })
         date_wise_results[d] = sorted(results, key=lambda x: x['Max_Spike'], reverse=True)
 
@@ -265,7 +266,7 @@ def generate_delivery_screener():
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(html_content)
 
-    print("✅ `index.html` Single Symbol Dropdown Filter के साथ अपडेट हो गया!")
+    print("✅ `index.html` सफलतापूर्वक बन गया!")
 
 if __name__ == "__main__":
     generate_delivery_screener()
