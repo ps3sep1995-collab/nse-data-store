@@ -1,12 +1,12 @@
       - name: Run Equity Scraper
         run: python scraper.py
 
-      - name: Split F&O Stocks into Individual CSVs
-        run: python split_fo_stocks.py
+      - name: Split F&O Equity Stocks into Individual CSVs
+        run: python split_fo_equity_stocks.py
 
-      - name: Save CSV Data to GitHub
+      - name: Save Data to GitHub
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add stocks/
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update F&O Stock Files [skip ci]" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update F&O Equity Stock Files [skip ci]" && git push)
