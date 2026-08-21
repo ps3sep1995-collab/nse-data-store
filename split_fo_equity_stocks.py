@@ -1,39 +1,40 @@
 import os
 import glob
 import pandas as pd
-import requests
-import io
 
 def get_fo_stock_list():
-    """NSE से F&O स्टॉक्स की लिस्ट फेच करना (Encoding Fix के साथ)"""
-    url = "https://archives.nseindia.com/content/fo/fo_mktlots.csv"
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-    
-    fo_stocks = set()
-    try:
-        response = requests.get(url, headers=headers, timeout=10)
-        if response.status_code == 200:
-            # latin1 / cp1252 डिकोडिंग एरर से बचाव के लिए
-            content = response.content.decode('latin1')
-            df = pd.read_csv(io.StringIO(content))
-            df.columns = df.columns.str.strip()
-            
-            if 'UNDERLYING' in df.columns:
-                symbols = df['UNDERLYING'].astype(str).str.strip().unique()
-                indices = ['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY', 'NIFTYNEXT50']
-                fo_stocks = {s for s in symbols if s not in indices and s != 'nan'}
-                print(f"✅ कुल {len(fo_stocks)} F&O स्टॉक्स की लिस्ट मिल गई।")
-    except Exception as e:
-        print(f"⚠️ F&O लिस्ट प्राप्त करने में त्रुटि: {e}")
-    
+    """NSE F&O स्टॉक्स की लिस्ट (बिना ऑनलाइन रिक्वेस्ट के)"""
+    fo_stocks = {
+        'AARTIIND', 'ABB', 'ABBOTINDIA', 'ABCAPITAL', 'ABFRL', 'ACC', 'ADANIENT', 'ADANIPORTS', 
+        'ALKEM', 'AMBUJACEMENT', 'APOLLOHOSP', 'APOLLOTYRE', 'ASHOKLEY', 'ASIANPAINT', 'ASTRAL', 
+        'ATUL', 'AUBANK', 'AUROPHARMA', 'AXISBANK', 'BAJAJ-AUTO', 'BAJAJFINSV', 'BAJFINANCE', 
+        'BALKRISIND', 'BALRAMCHIN', 'BANDHANBNK', 'BANKBARODA', 'BATAINDIA', 'BEL', 'BERGEPAINT', 
+        'BHARATFORG', 'BHARTIARTL', 'BHEL', 'BIOCON', 'BSOFT', 'BPCL', 'BRITANNIA', 'BOSCHLTD', 
+        'CANBK', 'CANFINHOME', 'CHAMBLFERT', 'CHOLAFIN', 'CIPLA', 'COALINDIA', 'COFORGE', 
+        'COLPAL', 'CONCOR', 'COROMANDEL', 'CROMPTON', 'CUB', 'CUMMINSIND', 'CYIENT', 'DABUR', 
+        'DALBHARAT', 'DEEPACNTR', 'DIVISLAB', 'DIXON', 'DLF', 'DRREDDY', 'EICHERMOT', 'ESCORTS', 
+        'EXIDEIND', 'FEDERALBNK', 'FACT', 'GAIL', 'GLENMARK', 'GMRINFRA', 'GNFC', 'GODREJCP', 
+        'GODREJPROP', 'GRANULES', 'GRASIM', 'GUJGASLTD', 'HAL', 'HAVELLS', 'HCLTECH', 'HDFCAMC', 
+        'HDFCBANK', 'HDFCLIFE', 'HEROMOTOCO', 'HINDALCO', 'HAL', 'HINDCOPPER', 'HINDPETRO', 
+        'HINDUNILVR', 'ICICIBANK', 'ICICIGI', 'ICICIPRULI', 'IDEA', 'IDFCFIRSTB', 'IEX', 'IGL', 
+        'INDHOTEL', 'INDIACEM', 'INDIAMART', 'INDIGO', 'INDUSINDBK', 'INDUSTOWER', 'INFY', 'IOC', 
+        'IPCALAB', 'IRCTC', 'IREDA', 'IRFC', 'ITC', 'JINDALSTEL', 'JKCEMENT', 'JSWSTEEL', 
+        'JUBLFOOD', 'KEI', 'KALYANKJIL', 'KOTAKBANK', 'LALPATHLAB', 'LT', 'LTIM', 'LTF', 'LTSH', 
+        'LUPIN', 'M&M', 'M&MFIN', 'MANAPPURAM', 'MARICO', 'MARUTI', 'MCX', 'METROPOLIS', 'MFSL', 
+        'MGL', 'MOTHERSON', 'MPHASIS', 'MRF', 'MUTHOOTFIN', 'NATIONALUM', 'NAVINFLUOR', 'NCC', 
+        'NESTLEIND', 'NMDC', 'NTPC', 'OBEROIRLTY', 'OFSS', 'OIL', 'ONGC', 'PAGEIND', 'PERSISTENT', 
+        'PETRONET', 'PFC', 'PIDILITIND', 'PIIND', 'PNB', 'POLYCAB', 'POWERTGRID', 'PVRINOX', 
+        'RAMCOCEM', 'RBLBANK', 'RECLTD', 'RELIANCE', 'SAIL', 'SBICARD', 'SBILIFE', 'SBIN', 
+        'SHREECEM', 'SHRIRAMFIN', 'SIEMENS', 'SJVN', 'SRF', 'SUNPHARMA', 'SUNTV', 'SYNGENE', 
+        'TATACHEMICALS', 'TATACOMM', 'TATACONSUM', 'TATAMOTORS', 'TATAPOWER', 'TATASTEEL', 
+        'TCS', 'TECHM', 'TITAN', 'TORNTPHARM', 'TRENT', 'TVSMOTOR', 'UBL', 'ULTRACEMCO', 'UPL', 
+        'VEDL', 'VOLTAS', 'WIPRO', 'YESBANK', 'ZEEL'
+    }
     return fo_stocks
 
 def process_existing_data():
     fo_stocks = get_fo_stock_list()
-    
-    if not fo_stocks:
-        print("❌ F&O लिस्ट प्राप्त नहीं हुई, प्रोसेस रोका गया।")
-        return
+    print(f"✅ कुल {len(fo_stocks)} F&O स्टॉक्स की लिस्ट लोड हो गई।")
 
     data_folder = "data"
     output_folder = "stocks"
@@ -47,7 +48,6 @@ def process_existing_data():
     for file in csv_files:
         date_str = os.path.basename(file).replace(".csv", "")
         try:
-            # encoding_errors ignore करके फ़ाइल आसानी से पढ़ें
             df = pd.read_csv(file, encoding='latin1', on_bad_lines='skip')
             df.columns = df.columns.str.strip()
             
