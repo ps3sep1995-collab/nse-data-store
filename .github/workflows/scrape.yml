@@ -1,7 +1,7 @@
 name: Process Saved Data to Stocks
 
 on:
-  workflow_dispatch: # केवल मैनुअल बटन दबाकर चलाने के लिए
+  workflow_dispatch:
 
 jobs:
   process-data:
@@ -28,5 +28,5 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add stocks/
+          git add -A
           git diff --quiet && git diff --staged --quiet || (git commit -m "Organized existing data into stocks folder [skip ci]" && git push)
