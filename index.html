@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F&O Stock Delivery Screener</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 15px; color: #333; }
+        .container { max-width: 1250px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); overflow-x: auto; }
+        h2 { color: #2c3e50; margin-bottom: 5px; }
+        p.subtitle { color: #7f8c8d; font-size: 14px; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #ddd; white-space: nowrap; }
+        th { background-color: #27ae60; color: white; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; }
+        tr:hover { background-color: #f1f8f5; }
+        .badge { background-color: #e74c3c; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; }
+        .num { text-align: right; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>🚀 F&O Complete Delivery & Turnover Screener</h2>
+        <p class="subtitle">तारीख: <b>2026-08-20</b> | फिल्टर: 5D, 7D और 10D Average से Delivery Qty <b>≥ 2x</b> है।</p>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th class="num">Close (₹)</th>
+                    <th class="num">Traded Qty</th>
+                    <th class="num">Turnover (Lakhs)</th>
+                    <th class="num">Today Delivery</th>
+                    <th class="num">Delivery %</th>
+                    <th class="num">5D Avg</th>
+                    <th class="num">7D Avg</th>
+                    <th class="num">10D Avg</th>
+                    <th class="num">Spike</th>
+                </tr>
+            </thead>
+            <tbody>
+
+                <tr>
+                    <td><b>BALRAMCHIN</b></td>
+                    <td class="num">767.10</td>
+                    <td class="num">33,514,941</td>
+                    <td class="num">247,052.12</td>
+                    <td class="num">4,426,907</td>
+                    <td class="num"><b>13.21%</b></td>
+                    <td class="num">332,090</td>
+                    <td class="num">335,579</td>
+                    <td class="num">308,671</td>
+                    <td class="num"><span class="badge">14.34x</span></td>
+                </tr>
+
+                <tr>
+                    <td><b>DALBHARAT</b></td>
+                    <td class="num">1897.00</td>
+                    <td class="num">582,875</td>
+                    <td class="num">11,099.20</td>
+                    <td class="num">272,209</td>
+                    <td class="num"><b>46.70%</b></td>
+                    <td class="num">87,526</td>
+                    <td class="num">73,129</td>
+                    <td class="num">70,306</td>
+                    <td class="num"><span class="badge">3.87x</span></td>
+                </tr>
+
+                <tr>
+                    <td><b>METROPOLIS</b></td>
+                    <td class="num">540.80</td>
+                    <td class="num">597,186</td>
+                    <td class="num">3,239.64</td>
+                    <td class="num">400,907</td>
+                    <td class="num"><b>67.13%</b></td>
+                    <td class="num">101,654</td>
+                    <td class="num">117,120</td>
+                    <td class="num">109,973</td>
+                    <td class="num"><span class="badge">3.65x</span></td>
+                </tr>
+
+                <tr>
+                    <td><b>CANFINHOME</b></td>
+                    <td class="num">842.90</td>
+                    <td class="num">431,403</td>
+                    <td class="num">3,585.54</td>
+                    <td class="num">255,881</td>
+                    <td class="num"><b>59.31%</b></td>
+                    <td class="num">77,865</td>
+                    <td class="num">75,650</td>
+                    <td class="num">90,012</td>
+                    <td class="num"><span class="badge">2.84x</span></td>
+                </tr>
+
+                <tr>
+                    <td><b>AUBANK</b></td>
+                    <td class="num">1088.00</td>
+                    <td class="num">3,678,931</td>
+                    <td class="num">39,931.44</td>
+                    <td class="num">2,259,079</td>
+                    <td class="num"><b>61.41%</b></td>
+                    <td class="num">589,815</td>
+                    <td class="num">694,279</td>
+                    <td class="num">795,364</td>
+                    <td class="num"><span class="badge">2.84x</span></td>
+                </tr>
+
+                <tr>
+                    <td><b>ITC</b></td>
+                    <td class="num">271.65</td>
+                    <td class="num">28,272,797</td>
+                    <td class="num">75,858.11</td>
+                    <td class="num">18,907,919</td>
+                    <td class="num"><b>66.88%</b></td>
+                    <td class="num">7,240,190</td>
+                    <td class="num">7,465,058</td>
+                    <td class="num">6,847,922</td>
+                    <td class="num"><span class="badge">2.76x</span></td>
+                </tr>
+
+                <tr>
+                    <td><b>JSWSTEEL</b></td>
+                    <td class="num">1299.70</td>
+                    <td class="num">3,416,352</td>
+                    <td class="num">44,260.98</td>
+                    <td class="num">1,831,440</td>
+                    <td class="num"><b>53.61%</b></td>
+                    <td class="num">664,673</td>
+                    <td class="num">681,922</td>
+                    <td class="num">729,261</td>
+                    <td class="num"><span class="badge">2.51x</span></td>
+                </tr>
+
+                <tr>
+                    <td><b>SYNGENE</b></td>
+                    <td class="num">395.50</td>
+                    <td class="num">1,883,583</td>
+                    <td class="num">7,479.45</td>
+                    <td class="num">1,173,819</td>
+                    <td class="num"><b>62.32%</b></td>
+                    <td class="num">263,134</td>
+                    <td class="num">273,272</td>
+                    <td class="num">493,107</td>
+                    <td class="num"><span class="badge">2.38x</span></td>
+                </tr>
+
+                <tr>
+                    <td><b>COFORGE</b></td>
+                    <td class="num">1882.00</td>
+                    <td class="num">4,002,215</td>
+                    <td class="num">74,911.31</td>
+                    <td class="num">1,982,917</td>
+                    <td class="num"><b>49.55%</b></td>
+                    <td class="num">813,256</td>
+                    <td class="num">800,111</td>
+                    <td class="num">889,404</td>
+                    <td class="num"><span class="badge">2.23x</span></td>
+                </tr>
+
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
