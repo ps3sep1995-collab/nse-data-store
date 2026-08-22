@@ -30,6 +30,13 @@ def generate_delivery_screener():
             df['Date'] = pd.to_datetime(df['Date']).dt.strftime('%Y-%m-%d')
             df = df.sort_values(by='Date', ascending=True)
 
+            # Price change calculate करना (अगर PREV_CLOSE उपलब्ध है या पिछले रो से)
+            if 'PREV_CLOSE' in df.columns:
+                df['PREV_CLOSE'] = pd.to_numeric(df['PREV_CLOSE'], errors='coerce').fillna(df['CLOSE_PRICE'])
+                df['PRICE_CHG_PCT'] = ((df['CLOSE_PRICE'] - df['PREV_CLOSE']) / df['PREV_CLOSE']) * 100
+            else:
+                df['PRICE_CHG_PCT'] = df['CLOSE_PRICE'].pct_change() * 100
+
             if len(df) >= 11:
                 symbol = os.path.basename(file).replace(".csv", "")
                 all_stocks_data[symbol] = df
@@ -46,48 +53,69 @@ def generate_delivery_screener():
     
     for d in target_dates:
         results = []
+        day_stocks = []
+
+        # उस दिन के सारे स्टॉक्स का प्राइज़ चेंज निकालना (Top Gainer/Loser तय करने के लिए)
         for symbol, df in all_stocks_data.items():
             if d in df['Date'].values:
                 idx = df[df['Date'] == d].index[0]
                 pos = df.index.get_loc(idx)
-                
                 if pos >= 10:
                     latest_row = df.iloc[pos]
-                    today_deliv = float(latest_row['DELIV_QTY'])
-                    
-                    prev_df = df.iloc[pos-10:pos]
-                    avg_2d = float(prev_df.iloc[-2:]['DELIV_QTY'].mean())
-                    avg_5d = float(prev_df.iloc[-5:]['DELIV_QTY'].mean())
-                    avg_7d = float(prev_df.iloc[-7:]['DELIV_QTY'].mean())
-                    avg_10d = float(prev_df['DELIV_QTY'].mean())
+                    chg_pct = float(latest_row['PRICE_CHG_PCT']) if pd.notnull(latest_row['PRICE_CHG_PCT']) else 0.0
+                    day_stocks.append({'symbol': symbol, 'chg_pct': chg_pct, 'pos': pos, 'df': df, 'row': latest_row})
 
-                    r2 = (today_deliv / avg_2d) if avg_2d > 0 else 0.0
-                    r5 = (today_deliv / avg_5d) if avg_5d > 0 else 0.0
-                    r7 = (today_deliv / avg_7d) if avg_7d > 0 else 0.0
-                    r10 = (today_deliv / avg_10d) if avg_10d > 0 else 0.0
+        # उस दिन के Top 10 Gainers और Top 10 Losers निकालना
+        day_stocks_sorted = sorted(day_stocks, key=lambda x: x['chg_pct'], reverse=True)
+        top_gainers = set([s['symbol'] for s in day_stocks_sorted[:10] if s['chg_pct'] > 0])
+        top_losers = set([s['symbol'] for s in day_stocks_sorted[-10:] if s['chg_pct'] < 0])
 
-                    max_spike = max(r2, r5, r7, r10)
-                    is_2x_val = bool(r2 >= 2.0 or r5 >= 2.0 or r7 >= 2.0 or r10 >= 2.0)
+        for item in day_stocks:
+            symbol = item['symbol']
+            pos = item['pos']
+            df = item['df']
+            latest_row = item['row']
+            today_deliv = float(latest_row['DELIV_QTY'])
+            chg_pct = item['chg_pct']
 
-                    results.append([
-                        str(d),                         # 0: Date
-                        str(symbol),                    # 1: Symbol
-                        round(float(max_spike), 2),     # 2: Max Spike
-                        round(float(latest_row['CLOSE_PRICE']), 2), # 3: Close Price
-                        int(latest_row['TTL_TRD_QNTY']),# 4: Traded Qty
-                        round(float(latest_row['TURNOVER_LACS']), 2), # 5: Turnover Lacs
-                        int(today_deliv),               # 6: Delivery Qty
-                        round(float(latest_row['DELIV_PER']), 2), # 7: Delivery %
-                        round(float(r2), 2),            # 8: R2
-                        round(float(r5), 2),            # 9: R5
-                        round(float(r7), 2),            # 10: R7
-                        round(float(r10), 2),           # 11: R10
-                        int(avg_2d),                    # 12: Avg 2D
-                        int(avg_5d),                    # 13: Avg 5D
-                        int(avg_7d),                    # 14: Avg 7D
-                        int(avg_10d),                   # 15: Avg 10D
-                        1 if is_2x_val else 0           # 16: Is2x
-                    ])
+            prev_df = df.iloc[pos-10:pos]
+            avg_2d = float(prev_df.iloc[-2:]['DELIV_QTY'].mean())
+            avg_5d = float(prev_df.iloc[-5:]['DELIV_QTY'].mean())
+            avg_7d = float(prev_df.iloc[-7:]['DELIV_QTY'].mean())
+            avg_10d = float(prev_df['DELIV_QTY'].mean())
+
+            r2 = (today_deliv / avg_2d) if avg_2d > 0 else 0.0
+            r5 = (today_deliv / avg_5d) if avg_5d > 0 else 0.0
+            r7 = (today_deliv / avg_7d) if avg_7d > 0 else 0.0
+            r10 = (today_deliv / avg_10d) if avg_10d > 0 else 0.0
+
+            max_spike = max(r2, r5, r7, r10)
+            is_2x_val = bool(r2 >= 2.0 or r5 >= 2.0 or r7 >= 2.0 or r10 >= 2.0)
+
+            # Rank / Tag: 1 = Gainer, -1 = Loser, 0 = Normal
+            tag = 1 if symbol in top_gainers else (-1 if symbol in top_losers else 0)
+
+            results.append([
+                str(d),                         # 0: Date
+                str(symbol),                    # 1: Symbol
+                round(float(max_spike), 2),     # 2: Max Spike
+                round(float(latest_row['CLOSE_PRICE']), 2), # 3: Close
+                int(latest_row['TTL_TRD_QNTY']),# 4: Traded Qty
+                round(float(latest_row['TURNOVER_LACS']), 2), # 5: Turnover
+                int(today_deliv),               # 6: Delivery Qty
+                round(float(latest_row['DELIV_PER']), 2), # 7: Delivery %
+                round(float(r2), 2),            # 8: R2
+                round(float(r5), 2),            # 9: R5
+                round(float(r7), 2),            # 10: R7
+                round(float(r10), 2),           # 11: R10
+                int(avg_2d),                    # 12: Avg 2D
+                int(avg_5d),                    # 13: Avg 5D
+                int(avg_7d),                    # 14: Avg 7D
+                int(avg_10d),                   # 15: Avg 10D
+                1 if is_2x_val else 0,          # 16: Is2x
+                round(chg_pct, 2),              # 17: Price Change %
+                tag                             # 18: Tag (1=Gainer, -1=Loser, 0=None)
+            ])
         date_wise_results[d] = sorted(results, key=lambda x: x[2], reverse=True)
 
     json_data = json.dumps(date_wise_results, separators=(',', ':'))
@@ -120,11 +148,15 @@ def generate_delivery_screener():
         .num {{ text-align: right; }}
         .filter-group {{ display: flex; gap: 4px; align-items: center; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 11px; }}
 
+        /* Tag Badges */
+        .tag-gainer {{ background: #dcfce7; color: #15803d; border: 1px solid #86efac; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; margin-left: 4px; }}
+        .tag-loser {{ background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; margin-left: 4px; }}
+
         /* Popup Modal Styling */
         .modal-overlay {{ display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; padding: 12px; box-sizing: border-box; }}
         .modal-box {{ background: #fff; width: 100%; max-width: 420px; border-radius: 12px; padding: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative; animation: popIn 0.2s ease-out; }}
         @keyframes popIn {{ from {{ transform: scale(0.9); opacity: 0; }} to {{ transform: scale(1); opacity: 1; }} }}
-        .modal-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px; margin-bottom: 12px; }}
+        .modal-header {{ display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px; margin-bottom: 12px; }}
         .modal-title {{ font-size: 16px; font-weight: bold; color: #0f172a; }}
         .close-btn {{ background: #f1f5f9; border: none; font-size: 16px; font-weight: bold; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; color: #64748b; }}
         .detail-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px; }}
@@ -185,7 +217,7 @@ def generate_delivery_screener():
             <div class="modal-header">
                 <div>
                     <span id="mSymbol" class="modal-title">SYMBOL</span>
-                    <span id="mDate" style="font-size: 11px; color: #64748b; margin-left: 6px;">(YYYY-MM-DD)</span>
+                    <div id="mDateTag" style="margin-top: 4px;"></div>
                 </div>
                 <button class="close-btn" onclick="hideModal()">✕</button>
             </div>
@@ -260,7 +292,19 @@ def generate_delivery_screener():
             if (!r) return;
 
             document.getElementById("mSymbol").innerText = r[1];
-            document.getElementById("mDate").innerText = `(${{r[0]}})`;
+            
+            let tagHtml = `<span style="font-size: 11px; color: #64748b;">${{r[0]}}</span>`;
+            let pctVal = r[17] > 0 ? `+${{r[17]}}%` : `${{r[17]}}%`;
+            
+            if (r[18] === 1) {{
+                tagHtml += ` <span class="tag-gainer">🟢 Top Gainer (${{pctVal}})</span>`;
+            }} else if (r[18] === -1) {{
+                tagHtml += ` <span class="tag-loser">🔴 Top Loser (${{pctVal}})</span>`;
+            }} else {{
+                tagHtml += ` <span style="font-size:11px; font-weight:bold; color:${{r[17] >= 0 ? '#16a34a' : '#dc2626'}};">(${{pctVal}})</span>`;
+            }}
+
+            document.getElementById("mDateTag").innerHTML = tagHtml;
             document.getElementById("mClose").innerText = `₹${{r[3].toFixed(2)}}`;
             document.getElementById("mSpike").innerText = `${{r[2]}}x`;
             document.getElementById("mDelivQty").innerText = r[6].toLocaleString();
@@ -320,7 +364,7 @@ def generate_delivery_screener():
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(html_content)
 
-    print("✅ `index.html` Popup Modal फीचर के साथ अपडेट हो गया!")
+    print("✅ `index.html` Top Gainer/Loser Tag के साथ सफलतापूर्वक अपडेट हो गया!")
 
 if __name__ == "__main__":
     generate_delivery_screener()
