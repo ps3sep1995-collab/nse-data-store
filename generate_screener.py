@@ -44,12 +44,17 @@ def generate_delivery_screener():
             # History for Modal (Directly reading CSV Columns)
             history_list = []
             for i in range(len(df)):
+                prev_c = float(df.iloc[i].get('PREV_CLOSE', 0))
+                if prev_c == 0 and i > 0:
+                    prev_c = float(df.iloc[i-1].get('CLOSE_PRICE', 0))
+
                 history_list.append({
                     'date': str(df.iloc[i]['Date']),
                     'open': round(float(df.iloc[i].get('OPEN_PRICE', 0)), 2),
                     'high': round(float(df.iloc[i].get('HIGH_PRICE', 0)), 2),
                     'low': round(float(df.iloc[i].get('LOW_PRICE', 0)), 2),
                     'close': round(float(df.iloc[i].get('CLOSE_PRICE', 0)), 2),
+                    'prev_close': round(prev_c, 2),
                     'ttq': int(df.iloc[i].get('TTL_TRD_QNTY', 0)),
                     'deliv': int(df.iloc[i].get('DELIV_QTY', 0)),
                     'deliv_per': round(float(df.iloc[i].get('DELIV_PER', 0)), 2),
@@ -97,6 +102,14 @@ def generate_delivery_screener():
             latest_row = item['row']
             tag = top_gainers_map.get(symbol, -top_losers_map.get(symbol, 0))
 
+            # Fetch Previous Close safely
+            prev_close_val = float(latest_row.get('PREV_CLOSE', 0))
+            if prev_close_val == 0:
+                close_p = float(latest_row.get('CLOSE_PRICE', 0))
+                chg = float(latest_row.get('PRICE_CHG_PCT', 0))
+                if chg != -100 and chg != 0:
+                    prev_close_val = close_p / (1 + (chg / 100))
+
             results.append([
                 str(d),                                                     # 0: Date
                 str(symbol),                                                # 1: Symbol
@@ -121,7 +134,8 @@ def generate_delivery_screener():
                 str(indices_str),                                           # 20: Indices String
                 round(float(latest_row.get('OPEN_PRICE', 0)), 2),           # 21: Open
                 round(float(latest_row.get('HIGH_PRICE', 0)), 2),           # 22: High
-                round(float(latest_row.get('LOW_PRICE', 0)), 2)             # 23: Low
+                round(float(latest_row.get('LOW_PRICE', 0)), 2),            # 23: Low
+                round(prev_close_val, 2)                                    # 24: Prev Close
             ])
         date_wise_results[d] = sorted(results, key=lambda x: x[2], reverse=True)
 
@@ -220,7 +234,8 @@ def generate_delivery_screener():
                         <th onclick="sortTable(1)">Symbol ↕</th>
                         <th onclick="sortTable(2, true)">Rank % Change ↕</th>
                         <th class="num" onclick="sortTable(3, true)">Max Spike ↕</th>
-                        <th class="num" onclick="sortTable(4, true)">Close (₹) ↕</th>
+                        <th class="num" onclick="sortTable(4, true)">Prev Close (₹) ↕</th>
+                        <th class="num" onclick="sortTable(5, true)">Close (₹) ↕</th>
                     </tr>
                 </thead>
                 <tbody id="tableBody"></tbody>
@@ -242,11 +257,12 @@ def generate_delivery_screener():
             </div>
 
             <!-- OHLC Section -->
-            <div style="background: #f1f5f9; padding: 8px; border-radius: 6px; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; text-align: center; gap: 4px;">
-                <div><div style="font-size: 10px; color: #64748b;">OPEN</div><div id="mOpen" style="font-size: 12px; font-weight: bold;">₹0</div></div>
-                <div><div style="font-size: 10px; color: #16a34a;">HIGH</div><div id="mHigh" style="font-size: 12px; font-weight: bold; color: #16a34a;">₹0</div></div>
-                <div><div style="font-size: 10px; color: #dc2626;">LOW</div><div id="mLow" style="font-size: 12px; font-weight: bold; color: #dc2626;">₹0</div></div>
-                <div><div style="font-size: 10px; color: #0284c7;">CLOSE</div><div id="mClose" style="font-size: 12px; font-weight: bold; color: #0284c7;">₹0</div></div>
+            <div style="background: #f1f5f9; padding: 8px; border-radius: 6px; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; text-align: center; gap: 4px;">
+                <div><div style="font-size: 9px; color: #64748b;">PREV CLOSE</div><div id="mPrevClose" style="font-size: 11px; font-weight: bold; color: #475569;">₹0</div></div>
+                <div><div style="font-size: 9px; color: #64748b;">OPEN</div><div id="mOpen" style="font-size: 11px; font-weight: bold;">₹0</div></div>
+                <div><div style="font-size: 9px; color: #16a34a;">HIGH</div><div id="mHigh" style="font-size: 11px; font-weight: bold; color: #16a34a;">₹0</div></div>
+                <div><div style="font-size: 9px; color: #dc2626;">LOW</div><div id="mLow" style="font-size: 11px; font-weight: bold; color: #dc2626;">₹0</div></div>
+                <div><div style="font-size: 9px; color: #0284c7;">CLOSE</div><div id="mClose" style="font-size: 11px; font-weight: bold; color: #0284c7;">₹0</div></div>
             </div>
 
             <div class="detail-grid">
@@ -268,7 +284,7 @@ def generate_delivery_screener():
                     <thead>
                         <tr>
                             <th>Date</th>
-                            <th class="num">O / H / L / C</th>
+                            <th class="num">Prev / O / H / L / C</th>
                             <th class="num">Deliv Qty</th>
                             <th class="num">Change %</th>
                             <th class="num">Spike</th>
@@ -329,7 +345,7 @@ def generate_delivery_screener():
             }}
 
             if (currentRowsData.length === 0) {{
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#94a3b8;">कोई डेटा नहीं मिला।</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#94a3b8;">कोई डेटा नहीं मिला।</td></tr>';
                 return;
             }}
 
@@ -353,7 +369,8 @@ def generate_delivery_screener():
                     <td><b>${{r[1]}}</b></td>
                     <td>${{tagHtml}}</td>
                     <td class="num"><span class="badge-green">${{r[2]}}x</span></td>
-                    <td class="num">${{r[3].toFixed(2)}}</td>
+                    <td class="num" style="color:#64748b;">${{r[24].toFixed(2)}}</td>
+                    <td class="num"><b>${{r[3].toFixed(2)}}</b></td>
                 </tr>`;
             }});
 
@@ -375,7 +392,8 @@ def generate_delivery_screener():
             document.getElementById("mIndexBadges").innerHTML = indicesList.map(idx => `<span class="badge-index">${{idx}}</span>`).join('');
             document.getElementById("mDateTag").innerHTML = `<span style="font-size: 11px; color: #64748b;">${{currentDate}}</span>`;
 
-            // OHLC Values
+            // OHLC & Prev Close Values
+            document.getElementById("mPrevClose").innerText = `₹${{r[24].toFixed(2)}}`;
             document.getElementById("mOpen").innerText = `₹${{r[21].toFixed(2)}}`;
             document.getElementById("mHigh").innerText = `₹${{r[22].toFixed(2)}}`;
             document.getElementById("mLow").innerText = `₹${{r[23].toFixed(2)}}`;
@@ -406,7 +424,7 @@ def generate_delivery_screener():
                 let pctStr = h.chg_pct > 0 ? `+${{h.chg_pct}}%` : `${{h.chg_pct}}%`;
                 histBuffer += `<tr>
                     <td><b>${{h.date}}</b></td>
-                    <td class="num">${{h.open}} / ${{h.high}} / ${{h.low}} / <b>${{h.close}}</b></td>
+                    <td class="num">${{h.prev_close}} / ${{h.open}} / ${{h.high}} / ${{h.low}} / <b>${{h.close}}</b></td>
                     <td class="num">${{h.deliv.toLocaleString()}}</td>
                     <td class="num" style="color:${{pctColor}}; font-weight:bold;">${{pctStr}}</td>
                     <td class="num"><b style="color:#10b981;">${{h.spike}}x</b></td>
@@ -439,8 +457,8 @@ def generate_delivery_screener():
             table.dataset.sortDir = dir;
 
             rows.sort((a, b) => {{
-                let x = a.cells[n].innerText.replace(/,/g, '').replace('%', '').replace('x', '').replace('+', '').trim();
-                let y = b.cells[n].innerText.replace(/,/g, '').replace('%', '').replace('x', '').replace('+', '').trim();
+                let x = a.cells[n].innerText.replace(/,/g, '').replace('%', '').replace('x', '').replace('+', '').replace('₹', '').trim();
+                let y = b.cells[n].innerText.replace(/,/g, '').replace('%', '').replace('x', '').replace('+', '').replace('₹', '').trim();
                 return isNumeric ? (dir === "asc" ? parseFloat(x) - parseFloat(y) : parseFloat(y) - parseFloat(x)) : (dir === "asc" ? x.localeCompare(y) : y.localeCompare(x));
             }});
             rows.forEach(row => document.getElementById("tableBody").appendChild(row));
@@ -455,7 +473,7 @@ def generate_delivery_screener():
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(html_content)
 
-    print("✅ `index.html` सफलतापूर्वक तैयार हो गया है!")
+    print("✅ `index.html` (Previous Close के साथ) सफलतापूर्वक तैयार हो गया है!")
 
 if __name__ == "__main__":
     generate_delivery_screener()
