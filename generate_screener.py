@@ -88,7 +88,7 @@ def generate_delivery_screener():
 
             symbol = os.path.basename(file).replace(".csv", "").upper()
             
-            # Determine Sector and Update CSV file if SECTOR column is missing
+            # Ensure SECTOR column in CSV
             sector = SECTOR_MAP.get(symbol, "Others")
             if 'SECTOR' not in df.columns:
                 df['SECTOR'] = sector
@@ -119,7 +119,7 @@ def generate_delivery_screener():
                 all_symbols_set.add(symbol)
                 all_sectors_set.add(sector)
 
-                # Pre-calculate history for Modal Table
+                # Modal History
                 history_list = []
                 for i in range(len(df)):
                     today_deliv = float(df.iloc[i]['DELIV_QTY'])
@@ -262,7 +262,7 @@ def generate_delivery_screener():
         tr.clickable-row {{ cursor: pointer; }}
         tr.clickable-row:hover {{ background: #e2e8f0; }}
         .badge-green {{ background: #10b981; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 11px; }}
-        .badge-sector {{ background: #e2e8f0; color: #475569; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; display: inline-block; }}
+        .badge-sector {{ background: #e2e8f0; color: #334155; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; display: inline-block; }}
         .num {{ text-align: right; }}
         .filter-group {{ display: flex; gap: 4px; align-items: center; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 11px; }}
 
@@ -366,10 +366,9 @@ def generate_delivery_screener():
                     <tr>
                         <th onclick="sortTable(0)">Date ↕</th>
                         <th onclick="sortTable(1)">Symbol ↕</th>
-                        <th onclick="sortTable(2)">Sector ↕</th>
                         <th>Rank / Change</th>
-                        <th class="num" onclick="sortTable(4, true)">Max Spike ↕</th>
-                        <th class="num" onclick="sortTable(5, true)">Close (₹) ↕</th>
+                        <th class="num" onclick="sortTable(3, true)">Max Spike ↕</th>
+                        <th class="num" onclick="sortTable(4, true)">Close (₹) ↕</th>
                     </tr>
                 </thead>
                 <tbody id="tableBody"></tbody>
@@ -465,14 +464,13 @@ def generate_delivery_screener():
             }}
 
             if (currentRowsData.length === 0) {{
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#94a3b8;">कोई डेटा नहीं मिला।</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#94a3b8;">कोई डेटा नहीं मिला।</td></tr>';
                 return;
             }}
 
             currentRowsData.slice(0, 200).forEach((r, idx) => {{
                 let rankTag = r[18];
                 let chgPct = r[17];
-                let sector = r[19];
                 let tagHtml = '';
                 let pctStr = chgPct > 0 ? `+${{chgPct.toFixed(2)}}%` : `${{chgPct.toFixed(2)}}%`;
                 
@@ -496,7 +494,6 @@ def generate_delivery_screener():
                 htmlBuffer += `<tr class="clickable-row" onclick="showModal(${{idx}})">
                     <td><b>${{r[0]}}</b></td>
                     <td><b>${{r[1]}}</b></td>
-                    <td><span class="badge-sector">${{sector}}</span></td>
                     <td>${{tagHtml}}</td>
                     <td class="num"><span class="badge-green">${{r[2]}}x</span></td>
                     <td class="num">${{r[3].toFixed(2)}}</td>
@@ -582,11 +579,9 @@ def generate_delivery_screener():
             let tr = document.getElementById("tableBody").getElementsByTagName("tr");
             for (let i = 0; i < tr.length; i++) {{
                 let tdSymbol = tr[i].getElementsByTagName("td")[1];
-                let tdSector = tr[i].getElementsByTagName("td")[2];
-                if (tdSymbol || tdSector) {{
-                    let symbolText = tdSymbol ? tdSymbol.textContent || tdSymbol.innerText : "";
-                    let sectorText = tdSector ? tdSector.textContent || tdSector.innerText : "";
-                    if (symbolText.toUpperCase().indexOf(input) > -1 || sectorText.toUpperCase().indexOf(input) > -1) {{
+                if (tdSymbol) {{
+                    let symbolText = tdSymbol.textContent || tdSymbol.innerText;
+                    if (symbolText.toUpperCase().indexOf(input) > -1) {{
                         tr[i].style.display = "";
                     }} else {{
                         tr[i].style.display = "none";
@@ -618,7 +613,7 @@ def generate_delivery_screener():
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(html_content)
 
-    print("✅ `stocks/` फ़ोल्डर की सभी CSV फ़ाइलों में `SECTOR` कॉलम जोड़ दिया गया और `index.html` अपडेट हो गया!")
+    print("✅ Main Table से Sector Column हटा दिया गया है। Sector अब केवल Popup और Dropdown में रहेगा!")
 
 if __name__ == "__main__":
     generate_delivery_screener()
