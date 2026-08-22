@@ -30,12 +30,14 @@ def generate_delivery_screener():
             df['Date'] = pd.to_datetime(df['Date']).dt.strftime('%Y-%m-%d')
             df = df.sort_values(by='Date', ascending=True)
 
-            # Price change calculate करना (अगर PREV_CLOSE उपलब्ध है या पिछले रो से)
             if 'PREV_CLOSE' in df.columns:
-                df['PREV_CLOSE'] = pd.to_numeric(df['PREV_CLOSE'], errors='coerce').fillna(df['CLOSE_PRICE'])
+                df['PREV_CLOSE'] = pd.to_numeric(df['PREV_CLOSE'], errors='coerce')
                 df['PRICE_CHG_PCT'] = ((df['CLOSE_PRICE'] - df['PREV_CLOSE']) / df['PREV_CLOSE']) * 100
             else:
-                df['PRICE_CHG_PCT'] = df['CLOSE_PRICE'].pct_change() * 100
+                prev_close = df['CLOSE_PRICE'].shift(1)
+                df['PRICE_CHG_PCT'] = ((df['CLOSE_PRICE'] - prev_close) / prev_close) * 100
+
+            df['PRICE_CHG_PCT'] = df['PRICE_CHG_PCT'].fillna(0.0)
 
             if len(df) >= 11:
                 symbol = os.path.basename(file).replace(".csv", "")
@@ -52,24 +54,31 @@ def generate_delivery_screener():
     date_wise_results = {}
     
     for d in target_dates:
-        results = []
         day_stocks = []
 
-        # उस दिन के सारे स्टॉक्स का प्राइज़ चेंज निकालना (Top Gainer/Loser तय करने के लिए)
         for symbol, df in all_stocks_data.items():
             if d in df['Date'].values:
                 idx = df[df['Date'] == d].index[0]
                 pos = df.index.get_loc(idx)
                 if pos >= 10:
                     latest_row = df.iloc[pos]
-                    chg_pct = float(latest_row['PRICE_CHG_PCT']) if pd.notnull(latest_row['PRICE_CHG_PCT']) else 0.0
+                    chg_pct = float(latest_row['PRICE_CHG_PCT'])
                     day_stocks.append({'symbol': symbol, 'chg_pct': chg_pct, 'pos': pos, 'df': df, 'row': latest_row})
 
-        # उस दिन के Top 10 Gainers और Top 10 Losers निकालना
+        # Top 5 Gainers और Top 5 Losers के लिए रैंक (Rank) तय करना
         day_stocks_sorted = sorted(day_stocks, key=lambda x: x['chg_pct'], reverse=True)
-        top_gainers = set([s['symbol'] for s in day_stocks_sorted[:10] if s['chg_pct'] > 0])
-        top_losers = set([s['symbol'] for s in day_stocks_sorted[-10:] if s['chg_pct'] < 0])
+        
+        top_gainers_map = {}
+        for rank, s in enumerate(day_stocks_sorted[:5], 1):
+            if s['chg_pct'] > 0:
+                top_gainers_map[s['symbol']] = rank
 
+        top_losers_map = {}
+        for rank, s in enumerate(reversed(day_stocks_sorted[-5:]), 1):
+            if s['chg_pct'] < 0:
+                top_losers_map[s['symbol']] = rank
+
+        results = []
         for item in day_stocks:
             symbol = item['symbol']
             pos = item['pos']
@@ -92,8 +101,8 @@ def generate_delivery_screener():
             max_spike = max(r2, r5, r7, r10)
             is_2x_val = bool(r2 >= 2.0 or r5 >= 2.0 or r7 >= 2.0 or r10 >= 2.0)
 
-            # Rank / Tag: 1 = Gainer, -1 = Loser, 0 = Normal
-            tag = 1 if symbol in top_gainers else (-1 if symbol in top_losers else 0)
+            # Tag Code: Positive values = Gainer Rank (1 to 5), Negative values = Loser Rank (-1 to -5), 0 = Normal
+            tag = top_gainers_map.get(symbol, -top_losers_map.get(symbol, 0))
 
             results.append([
                 str(d),                         # 0: Date
@@ -114,7 +123,7 @@ def generate_delivery_screener():
                 int(avg_10d),                   # 15: Avg 10D
                 1 if is_2x_val else 0,          # 16: Is2x
                 round(chg_pct, 2),              # 17: Price Change %
-                tag                             # 18: Tag (1=Gainer, -1=Loser, 0=None)
+                tag                             # 18: Rank Tag (1..5 = Gainer Rank, -1..-5 = Loser Rank, 0 = None)
             ])
         date_wise_results[d] = sorted(results, key=lambda x: x[2], reverse=True)
 
@@ -148,11 +157,10 @@ def generate_delivery_screener():
         .num {{ text-align: right; }}
         .filter-group {{ display: flex; gap: 4px; align-items: center; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 11px; }}
 
-        /* Tag Badges */
-        .tag-gainer {{ background: #dcfce7; color: #15803d; border: 1px solid #86efac; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; margin-left: 4px; }}
-        .tag-loser {{ background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; margin-left: 4px; }}
+        .tag-gainer {{ background: #dcfce7; color: #15803d; border: 1px solid #86efac; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 4px; display: inline-block; }}
+        .tag-loser {{ background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 4px; display: inline-block; }}
+        .tag-normal {{ background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 4px; display: inline-block; }}
 
-        /* Popup Modal Styling */
         .modal-overlay {{ display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; padding: 12px; box-sizing: border-box; }}
         .modal-box {{ background: #fff; width: 100%; max-width: 420px; border-radius: 12px; padding: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative; animation: popIn 0.2s ease-out; }}
         @keyframes popIn {{ from {{ transform: scale(0.9); opacity: 0; }} to {{ transform: scale(1); opacity: 1; }} }}
@@ -295,13 +303,15 @@ def generate_delivery_screener():
             
             let tagHtml = `<span style="font-size: 11px; color: #64748b;">${{r[0]}}</span>`;
             let pctVal = r[17] > 0 ? `+${{r[17]}}%` : `${{r[17]}}%`;
+            let rankTag = r[18];
             
-            if (r[18] === 1) {{
-                tagHtml += ` <span class="tag-gainer">🟢 Top Gainer (${{pctVal}})</span>`;
-            }} else if (r[18] === -1) {{
-                tagHtml += ` <span class="tag-loser">🔴 Top Loser (${{pctVal}})</span>`;
+            if (rankTag > 0) {{
+                tagHtml += ` <span class="tag-gainer">🟢 Top ${{rankTag}} Gainer (${{pctVal}})</span>`;
+            }} else if (rankTag < 0) {{
+                tagHtml += ` <span class="tag-loser">🔴 Top ${{Math.abs(rankTag)}} Loser (${{pctVal}})</span>`;
             }} else {{
-                tagHtml += ` <span style="font-size:11px; font-weight:bold; color:${{r[17] >= 0 ? '#16a34a' : '#dc2626'}};">(${{pctVal}})</span>`;
+                let colorClass = r[17] >= 0 ? 'color: #16a34a;' : 'color: #dc2626;';
+                tagHtml += ` <span class="tag-normal" style="${{colorClass}}">Change: ${{pctVal}}</span>`;
             }}
 
             document.getElementById("mDateTag").innerHTML = tagHtml;
@@ -364,7 +374,7 @@ def generate_delivery_screener():
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(html_content)
 
-    print("✅ `index.html` Top Gainer/Loser Tag के साथ सफलतापूर्वक अपडेट हो गया!")
+    print("✅ `index.html` Top 5 Gainer/Loser Rank के साथ सफलतापूर्वक अपडेट हो गया!")
 
 if __name__ == "__main__":
     generate_delivery_screener()
