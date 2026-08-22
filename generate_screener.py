@@ -3,6 +3,66 @@ import glob
 import pandas as pd
 import json
 
+# F&O and Major NSE Stock Sector Mapping Dictionary
+SECTOR_MAP = {
+    # Banking & Financials
+    "HDFCBANK": "Banking", "ICICIBANK": "Banking", "SBIN": "Banking", "KOTAKBANK": "Banking",
+    "AXISBANK": "Banking", "INDUSINDBK": "Banking", "BANKBARODA": "Banking", "PNB": "Banking",
+    "IDFCFIRSTB": "Banking", "AUBANK": "Banking", "CANBK": "Banking", "FEDERALBNK": "Banking",
+    "BANDHANBNK": "Banking", "BAJFINANCE": "Financials", "BAJAJFINSV": "Financials",
+    "PFC": "Financials", "REC": "Financials", "MUTHOOTFIN": "Financials", "CHOLAFIN": "Financials",
+    "SHRIRAMFIN": "Financials", "M&MFIN": "Financials", "LICHSGFIN": "Financials", "SBILIFE": "Financials",
+    "HDFCLIFE": "Financials", "ICICIPRULI": "Financials", "HDFCAMC": "Financials",
+
+    # IT & Telecom
+    "TCS": "IT", "INFY": "IT", "HCLTECH": "IT", "WIPRO": "IT", "TECHM": "IT",
+    "LTIM": "IT", "LTTS": "IT", "COFORGE": "IT", "PERSISTENT": "IT", "MPHASIS": "IT",
+    "BHARTIARTL": "Telecom", "IDEA": "Telecom",
+
+    # Automobiles & Auto Ancillaries
+    "TATAMOTORS": "Auto", "MARUTI": "Auto", "M&M": "Auto", "HEROMOTOCO": "Auto",
+    "BAJAJ-AUTO": "Auto", "EICHERMOT": "Auto", "TVSMOTOR": "Auto", "BOSCHLTD": "Auto Ancillary",
+    "BHARATFORG": "Auto Ancillary", "MRF": "Auto Ancillary", "BALKRISIND": "Auto Ancillary",
+    "MOTHERSON": "Auto Ancillary", "APOLLOTYRE": "Auto Ancillary",
+
+    # Oil, Gas & Energy / Utilities
+    "RELIANCE": "Oil & Gas", "ONGC": "Oil & Gas", "IOC": "Oil & Gas", "BPCL": "Oil & Gas",
+    "GAIL": "Oil & Gas", "PETRONET": "Oil & Gas", "OIL": "Oil & Gas", "NTPC": "Power",
+    "POWERGRID": "Power", "TATAPOWER": "Power", "ADANIPOWER": "Power", "ADANIENSOL": "Power",
+    "ADANIGREEN": "Power", "COALINDIA": "Mining & Energy", "NHPC": "Power",
+
+    # Metals & Mining
+    "TATASTEEL": "Metals", "JSWSTEEL": "Metals", "HINDALCO": "Metals", "JINDALSTEL": "Metals",
+    "NMDC": "Metals", "VEDL": "Metals", "NATIONALUM": "Metals", "SAIL": "Metals",
+
+    # Pharmaceuticals & Healthcare
+    "SUNPHARMA": "Pharma", "DRREDDY": "Pharma", "CIPLA": "Pharma", "DIVISLAB": "Pharma",
+    "LUPIN": "Pharma", "AUROPHARMA": "Pharma", "BIOCON": "Pharma", "TORNTPHARM": "Pharma",
+    "ALKEM": "Pharma", "ZYDUSLIFE": "Pharma", "GLENMARK": "Pharma", "APOLLOHOSP": "Healthcare",
+    "MAXHEALTH": "Healthcare", "SYNGENE": "Pharma",
+
+    # FMCG & Consumer Durables
+    "HUNVR": "FMCG", "ITC": "FMCG", "NESTLEIND": "FMCG", "BRITANNIA": "FMCG",
+    "TATACONSUM": "FMCG", "DABUR": "FMCG", "GODREJCP": "FMCG", "MARICO": "FMCG",
+    "COLPAL": "FMCG", "UBL": "FMCG", "MCDOWELL-N": "FMCG", "TITAN": "Consumer Durables",
+    "HAVELSS": "Consumer Durables", "VOLTAS": "Consumer Durables", "CROMPTON": "Consumer Durables",
+    "DIXON": "Consumer Durables", "AMBER": "Consumer Durables",
+
+    # Infrastructure, Capital Goods & Cement
+    "LT": "Infrastructure", "L&TFH": "Financials", "HAL": "Defense", "BEL": "Defense",
+    "BDL": "Defense", "MAZDOCK": "Defense", "COCHINSHIP": "Defense", "BHEL": "Capital Goods",
+    "SIEMENS": "Capital Goods", "ABB": "Capital Goods", "CUMMINSIND": "Capital Goods",
+    "ULTRACEMCO": "Cement", "GRASIM": "Cement", "AMBUJACEM": "Cement", "ACC": "Cement",
+    "DALBHARAT": "Cement", "SHREECEM": "Cement",
+
+    # Real Estate, Chemicals & Others
+    "DLF": "Real Estate", "GODREJPROP": "Real Estate", "OBEROIRLTY": "Real Estate",
+    "PHOENIXLTD": "Real Estate", "LODHA": "Real Estate", "UPL": "Chemicals",
+    "PIIND": "Chemicals", "SRF": "Chemicals", "AARTIIND": "Chemicals", "ATUL": "Chemicals",
+    "DEEPAKNTR": "Chemicals", "NAVINFLUOR": "Chemicals", "INDIGO": "Aviation",
+    "IRCTC": "Services", "CONCOR": "Logistics", "DELHIVERY": "Logistics"
+}
+
 def generate_delivery_screener():
     stocks_folder = "stocks"
     stock_files = glob.glob(os.path.join(stocks_folder, "*.csv"))
@@ -14,6 +74,7 @@ def generate_delivery_screener():
     all_stocks_data = {}
     available_dates = set()
     all_symbols_set = set()
+    all_sectors_set = set()
     stock_full_history = {}
 
     for file in stock_files:
@@ -24,6 +85,18 @@ def generate_delivery_screener():
             required_cols = ['DELIV_QTY', 'CLOSE_PRICE', 'TTL_TRD_QNTY', 'TURNOVER_LACS', 'DELIV_PER']
             if not all(col in df.columns for col in required_cols):
                 continue
+
+            symbol = os.path.basename(file).replace(".csv", "").upper()
+            
+            # Determine Sector and Update CSV file if SECTOR column is missing
+            sector = SECTOR_MAP.get(symbol, "Others")
+            if 'SECTOR' not in df.columns:
+                df['SECTOR'] = sector
+                df.to_csv(file, index=False)
+            else:
+                first_sec = str(df['SECTOR'].iloc[0]).strip()
+                if first_sec and first_sec.lower() != 'nan':
+                    sector = first_sec
 
             for col in ['DELIV_QTY', 'CLOSE_PRICE', 'TTL_TRD_QNTY', 'TURNOVER_LACS', 'DELIV_PER']:
                 df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
@@ -41,10 +114,10 @@ def generate_delivery_screener():
             df['PRICE_CHG_PCT'] = df['PRICE_CHG_PCT'].fillna(0.0)
 
             if len(df) >= 11:
-                symbol = os.path.basename(file).replace(".csv", "")
-                all_stocks_data[symbol] = df
+                all_stocks_data[symbol] = (df, sector)
                 available_dates.update(df['Date'].tolist()[10:])
                 all_symbols_set.add(symbol)
+                all_sectors_set.add(sector)
 
                 # Pre-calculate history for Modal Table
                 history_list = []
@@ -80,6 +153,7 @@ def generate_delivery_screener():
 
     sorted_dates = sorted(list(available_dates), reverse=True)
     sorted_symbols = sorted(list(all_symbols_set))
+    sorted_sectors = sorted(list(all_sectors_set))
     
     target_dates = sorted_dates[:15]
     date_wise_results = {}
@@ -87,14 +161,14 @@ def generate_delivery_screener():
     for d in target_dates:
         day_stocks = []
 
-        for symbol, df in all_stocks_data.items():
+        for symbol, (df, sector) in all_stocks_data.items():
             if d in df['Date'].values:
                 idx = df[df['Date'] == d].index[0]
                 pos = df.index.get_loc(idx)
                 if pos >= 10:
                     latest_row = df.iloc[pos]
                     chg_pct = float(latest_row['PRICE_CHG_PCT'])
-                    day_stocks.append({'symbol': symbol, 'chg_pct': chg_pct, 'pos': pos, 'df': df, 'row': latest_row})
+                    day_stocks.append({'symbol': symbol, 'sector': sector, 'chg_pct': chg_pct, 'pos': pos, 'df': df, 'row': latest_row})
 
         day_stocks_sorted = sorted(day_stocks, key=lambda x: x['chg_pct'], reverse=True)
         
@@ -111,6 +185,7 @@ def generate_delivery_screener():
         results = []
         for item in day_stocks:
             symbol = item['symbol']
+            sector = item['sector']
             pos = item['pos']
             df = item['df']
             latest_row = item['row']
@@ -152,7 +227,8 @@ def generate_delivery_screener():
                 int(avg_10d),                   # 15: Avg 10D
                 1 if is_2x_val else 0,          # 16: Is2x
                 round(chg_pct, 2),              # 17: Price Change %
-                tag                             # 18: Rank Tag
+                tag,                            # 18: Rank Tag
+                str(sector)                     # 19: Sector Name
             ])
         date_wise_results[d] = sorted(results, key=lambda x: x[2], reverse=True)
 
@@ -163,6 +239,7 @@ def generate_delivery_screener():
     max_date = target_dates[0] if target_dates else ""
 
     symbol_options = '<option value="ALL">-- ALL SYMBOLS --</option>' + "".join([f'<option value="{s}">{s}</option>' for s in sorted_symbols])
+    sector_options = '<option value="ALL">-- ALL SECTORS --</option>' + "".join([f'<option value="{sec}">{sec}</option>' for sec in sorted_sectors])
 
     html_content = f"""<!DOCTYPE html>
 <html lang="hi">
@@ -185,6 +262,7 @@ def generate_delivery_screener():
         tr.clickable-row {{ cursor: pointer; }}
         tr.clickable-row:hover {{ background: #e2e8f0; }}
         .badge-green {{ background: #10b981; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 11px; }}
+        .badge-sector {{ background: #e2e8f0; color: #475569; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; display: inline-block; }}
         .num {{ text-align: right; }}
         .filter-group {{ display: flex; gap: 4px; align-items: center; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 11px; }}
 
@@ -211,15 +289,12 @@ def generate_delivery_screener():
         }}
         .rank-bottom {{ font-size: 9px; font-weight: 700; align-self: flex-end; margin-right: 2px; }}
 
-        /* Gainer (Green) Style */
         .fraction-gainer {{ background: #dcfce7; color: #15803d; border: 1px solid #86efac; }}
         .fraction-gainer .rank-slanted-line {{ background: #16a34a; }}
 
-        /* Loser (Red) Style */
         .fraction-loser {{ background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }}
         .fraction-loser .rank-slanted-line {{ background: #dc2626; }}
 
-        /* Normal % Text Style */
         .normal-pct-green {{ color: #16a34a; font-weight: bold; font-size: 11px; }}
         .normal-pct-red {{ color: #dc2626; font-weight: bold; font-size: 11px; }}
 
@@ -261,6 +336,13 @@ def generate_delivery_screener():
             </div>
 
             <div class="filter-group">
+                <label>Sector:</label>
+                <select id="sectorSelect" class="select-box" onchange="renderData()">
+                    {sector_options}
+                </select>
+            </div>
+
+            <div class="filter-group">
                 <label>फ़िल्टर:</label>
                 <select id="modeSelect" class="select-box" onchange="renderData()">
                     <option value="2x">Spike >= 2x Only</option>
@@ -284,9 +366,10 @@ def generate_delivery_screener():
                     <tr>
                         <th onclick="sortTable(0)">Date ↕</th>
                         <th onclick="sortTable(1)">Symbol ↕</th>
+                        <th onclick="sortTable(2)">Sector ↕</th>
                         <th>Rank / Change</th>
-                        <th class="num" onclick="sortTable(3, true)">Max Spike ↕</th>
-                        <th class="num" onclick="sortTable(4, true)">Close (₹) ↕</th>
+                        <th class="num" onclick="sortTable(4, true)">Max Spike ↕</th>
+                        <th class="num" onclick="sortTable(5, true)">Close (₹) ↕</th>
                     </tr>
                 </thead>
                 <tbody id="tableBody"></tbody>
@@ -300,6 +383,7 @@ def generate_delivery_screener():
             <div class="modal-header">
                 <div>
                     <span id="mSymbol" class="modal-title">SYMBOL</span>
+                    <span id="mSectorBadge" class="badge-sector" style="margin-left: 6px;">Sector</span>
                     <div id="mDateTag" style="margin-top: 4px;"></div>
                 </div>
                 <button class="close-btn" onclick="hideModal()">✕</button>
@@ -351,6 +435,7 @@ def generate_delivery_screener():
 
         function renderData() {{
             const selectedSymbol = document.getElementById("singleSymbolSelect").value;
+            const selectedSector = document.getElementById("sectorSelect").value;
             const mode = document.getElementById("modeSelect").value;
             const startDate = document.getElementById("startDate").value;
             const endDate = document.getElementById("endDate").value;
@@ -363,9 +448,10 @@ def generate_delivery_screener():
                 if (date >= startDate && date <= endDate) {{
                     storeData[date].forEach(r => {{
                         let matchSymbol = (selectedSymbol === "ALL" || r[1] === selectedSymbol);
+                        let matchSector = (selectedSector === "ALL" || r[19] === selectedSector);
                         let matchMode = (selectedSymbol !== "ALL") ? true : (mode === "all" || r[16] === 1);
 
-                        if (matchSymbol && matchMode) {{
+                        if (matchSymbol && matchSector && matchMode) {{
                             currentRowsData.push(r);
                         }}
                     }});
@@ -379,13 +465,14 @@ def generate_delivery_screener():
             }}
 
             if (currentRowsData.length === 0) {{
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#94a3b8;">कोई डेटा नहीं मिला।</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#94a3b8;">कोई डेटा नहीं मिला।</td></tr>';
                 return;
             }}
 
             currentRowsData.slice(0, 200).forEach((r, idx) => {{
                 let rankTag = r[18];
                 let chgPct = r[17];
+                let sector = r[19];
                 let tagHtml = '';
                 let pctStr = chgPct > 0 ? `+${{chgPct.toFixed(2)}}%` : `${{chgPct.toFixed(2)}}%`;
                 
@@ -409,6 +496,7 @@ def generate_delivery_screener():
                 htmlBuffer += `<tr class="clickable-row" onclick="showModal(${{idx}})">
                     <td><b>${{r[0]}}</b></td>
                     <td><b>${{r[1]}}</b></td>
+                    <td><span class="badge-sector">${{sector}}</span></td>
                     <td>${{tagHtml}}</td>
                     <td class="num"><span class="badge-green">${{r[2]}}x</span></td>
                     <td class="num">${{r[3].toFixed(2)}}</td>
@@ -425,8 +513,10 @@ def generate_delivery_screener():
 
             const symbol = r[1];
             const currentDate = r[0];
+            const sector = r[19];
 
             document.getElementById("mSymbol").innerText = symbol;
+            document.getElementById("mSectorBadge").innerText = sector;
             
             let tagHtml = `<span style="font-size: 11px; color: #64748b;">${{currentDate}}</span>`;
             let pctVal = r[17] > 0 ? `+${{r[17]}}%` : `${{r[17]}}%`;
@@ -492,8 +582,15 @@ def generate_delivery_screener():
             let tr = document.getElementById("tableBody").getElementsByTagName("tr");
             for (let i = 0; i < tr.length; i++) {{
                 let tdSymbol = tr[i].getElementsByTagName("td")[1];
-                if (tdSymbol) {{
-                    tr[i].style.display = (tdSymbol.textContent || tdSymbol.innerText).toUpperCase().indexOf(input) > -1 ? "" : "none";
+                let tdSector = tr[i].getElementsByTagName("td")[2];
+                if (tdSymbol || tdSector) {{
+                    let symbolText = tdSymbol ? tdSymbol.textContent || tdSymbol.innerText : "";
+                    let sectorText = tdSector ? tdSector.textContent || tdSector.innerText : "";
+                    if (symbolText.toUpperCase().indexOf(input) > -1 || sectorText.toUpperCase().indexOf(input) > -1) {{
+                        tr[i].style.display = "";
+                    }} else {{
+                        tr[i].style.display = "none";
+                    }}
                 }}
             }}
         }}
@@ -521,7 +618,7 @@ def generate_delivery_screener():
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(html_content)
 
-    print("✅ `index.html` पॉपअप में हॉरिजॉन्टल लाइन और 7 दिन की हिस्ट्री के साथ अपडेट हो गया!")
+    print("✅ `stocks/` फ़ोल्डर की सभी CSV फ़ाइलों में `SECTOR` कॉलम जोड़ दिया गया और `index.html` अपडेट हो गया!")
 
 if __name__ == "__main__":
     generate_delivery_screener()
