@@ -154,6 +154,7 @@ def generate_delivery_screener():
                     <tr>
                         <th onclick="sortTable(0)">Date ↕</th>
                         <th onclick="sortTable(1)">Symbol ↕</th>
+                        <th class="num" onclick="sortTable(11, true)">Max Spike ↕</th>
                         <th class="num" onclick="sortTable(2, true)">Close ↕</th>
                         <th class="num" onclick="sortTable(3, true)">Traded Qty ↕</th>
                         <th class="num" onclick="sortTable(4, true)">Turnover(L) ↕</th>
@@ -163,7 +164,6 @@ def generate_delivery_screener():
                         <th class="num" onclick="sortTable(8, true)">5D Ratio ↕</th>
                         <th class="num" onclick="sortTable(9, true)">7D Ratio ↕</th>
                         <th class="num" onclick="sortTable(10, true)">10D Ratio ↕</th>
-                        <th class="num" onclick="sortTable(11, true)">Max Spike ↕</th>
                     </tr>
                 </thead>
                 <tbody id="tableBody"></tbody>
