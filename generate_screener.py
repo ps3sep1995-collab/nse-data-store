@@ -65,7 +65,6 @@ def generate_delivery_screener():
                     chg_pct = float(latest_row['PRICE_CHG_PCT'])
                     day_stocks.append({'symbol': symbol, 'chg_pct': chg_pct, 'pos': pos, 'df': df, 'row': latest_row})
 
-        # Top 5 Gainers और Top 5 Losers के लिए रैंक (Rank) तय करना
         day_stocks_sorted = sorted(day_stocks, key=lambda x: x['chg_pct'], reverse=True)
         
         top_gainers_map = {}
@@ -101,7 +100,6 @@ def generate_delivery_screener():
             max_spike = max(r2, r5, r7, r10)
             is_2x_val = bool(r2 >= 2.0 or r5 >= 2.0 or r7 >= 2.0 or r10 >= 2.0)
 
-            # Tag Code: Positive values = Gainer Rank (1 to 5), Negative values = Loser Rank (-1 to -5), 0 = Normal
             tag = top_gainers_map.get(symbol, -top_losers_map.get(symbol, 0))
 
             results.append([
@@ -123,7 +121,7 @@ def generate_delivery_screener():
                 int(avg_10d),                   # 15: Avg 10D
                 1 if is_2x_val else 0,          # 16: Is2x
                 round(chg_pct, 2),              # 17: Price Change %
-                tag                             # 18: Rank Tag (1..5 = Gainer Rank, -1..-5 = Loser Rank, 0 = None)
+                tag                             # 18: Rank Tag
             ])
         date_wise_results[d] = sorted(results, key=lambda x: x[2], reverse=True)
 
@@ -157,6 +155,11 @@ def generate_delivery_screener():
         .num {{ text-align: right; }}
         .filter-group {{ display: flex; gap: 4px; align-items: center; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 11px; }}
 
+        /* Small Table Tag Badges */
+        .tbl-gainer {{ background: #dcfce7; color: #15803d; border: 1px solid #86efac; padding: 1px 4px; border-radius: 3px; font-size: 9px; font-weight: bold; display: inline-block; white-space: nowrap; }}
+        .tbl-loser {{ background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; padding: 1px 4px; border-radius: 3px; font-size: 9px; font-weight: bold; display: inline-block; white-space: nowrap; }}
+
+        /* Modal Badges */
         .tag-gainer {{ background: #dcfce7; color: #15803d; border: 1px solid #86efac; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 4px; display: inline-block; }}
         .tag-loser {{ background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 4px; display: inline-block; }}
         .tag-normal {{ background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 4px; display: inline-block; }}
@@ -210,8 +213,9 @@ def generate_delivery_screener():
                     <tr>
                         <th onclick="sortTable(0)">Date ↕</th>
                         <th onclick="sortTable(1)">Symbol ↕</th>
-                        <th class="num" onclick="sortTable(2, true)">Max Spike ↕</th>
-                        <th class="num" onclick="sortTable(3, true)">Close (₹) ↕</th>
+                        <th>Tag</th>
+                        <th class="num" onclick="sortTable(3, true)">Max Spike ↕</th>
+                        <th class="num" onclick="sortTable(4, true)">Close (₹) ↕</th>
                     </tr>
                 </thead>
                 <tbody id="tableBody"></tbody>
@@ -248,6 +252,13 @@ def generate_delivery_screener():
         const storeData = {json_data};
         let currentRowsData = [];
 
+        function getSuffix(num) {{
+            if (num === 1) return '1st';
+            if (num === 2) return '2nd';
+            if (num === 3) return '3rd';
+            return num + 'th';
+        }}
+
         function renderData() {{
             const selectedSymbol = document.getElementById("singleSymbolSelect").value;
             const mode = document.getElementById("modeSelect").value;
@@ -278,14 +289,24 @@ def generate_delivery_screener():
             }}
 
             if (currentRowsData.length === 0) {{
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#94a3b8;">कोई डेटा नहीं मिला।</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#94a3b8;">कोई डेटा नहीं मिला।</td></tr>';
                 return;
             }}
 
             currentRowsData.slice(0, 200).forEach((r, idx) => {{
+                let rankTag = r[18];
+                let tagHtml = '-';
+                
+                if (rankTag > 0) {{
+                    tagHtml = `<span class="tbl-gainer">Gainer/${{getSuffix(rankTag)}}</span>`;
+                }} else if (rankTag < 0) {{
+                    tagHtml = `<span class="tbl-loser">Loser/${{getSuffix(Math.abs(rankTag))}}</span>`;
+                }}
+
                 htmlBuffer += `<tr class="clickable-row" onclick="showModal(${{idx}})">
                     <td><b>${{r[0]}}</b></td>
                     <td><b>${{r[1]}}</b></td>
+                    <td>${{tagHtml}}</td>
                     <td class="num"><span class="badge-green">${{r[2]}}x</span></td>
                     <td class="num">${{r[3].toFixed(2)}}</td>
                 </tr>`;
@@ -374,7 +395,7 @@ def generate_delivery_screener():
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(html_content)
 
-    print("✅ `index.html` Top 5 Gainer/Loser Rank के साथ सफलतापूर्वक अपडेट हो गया!")
+    print("✅ `index.html` टेबल में छोटे टैग कॉलम (Gainer/4th) के साथ अपडेट हो गया!")
 
 if __name__ == "__main__":
     generate_delivery_screener()
