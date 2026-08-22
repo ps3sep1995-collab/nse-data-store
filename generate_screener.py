@@ -3,359 +3,211 @@ import glob
 import pandas as pd
 import json
 
-# F&O and Major NSE Stock Sector Mapping Dictionary
-SECTOR_MAP = {
-    # Banking & Financials
-    "HDFCBANK": "Banking", "ICICIBANK": "Banking", "SBIN": "Banking", "KOTAKBANK": "Banking",
-    "AXISBANK": "Banking", "INDUSINDBK": "Banking", "BANKBARODA": "Banking", "PNB": "Banking",
-    "IDFCFIRSTB": "Banking", "AUBANK": "Banking", "CANBK": "Banking", "FEDERALBNK": "Banking",
-    "BANDHANBNK": "Banking", "BAJFINANCE": "Financials", "BAJAJFINSV": "Financials",
-    "PFC": "Financials", "REC": "Financials", "MUTHOOTFIN": "Financials", "CHOLAFIN": "Financials",
-    "SHRIRAMFIN": "Financials", "M&MFIN": "Financials", "LICHSGFIN": "Financials", "SBILIFE": "Financials",
-    "HDFCLIFE": "Financials", "ICICIPRULI": "Financials", "HDFCAMC": "Financials",
-
-    # IT & Telecom
-    "TCS": "IT", "INFY": "IT", "HCLTECH": "IT", "WIPRO": "IT", "TECHM": "IT",
-    "LTIM": "IT", "LTTS": "IT", "COFORGE": "IT", "PERSISTENT": "IT", "MPHASIS": "IT",
-    "BHARTIARTL": "Telecom", "IDEA": "Telecom",
-
-    # Automobiles & Auto Ancillaries
-    "TATAMOTORS": "Auto", "MARUTI": "Auto", "M&M": "Auto", "HEROMOTOCO": "Auto",
-    "BAJAJ-AUTO": "Auto", "EICHERMOT": "Auto", "TVSMOTOR": "Auto", "BOSCHLTD": "Auto Ancillary",
-    "BHARATFORG": "Auto Ancillary", "MRF": "Auto Ancillary", "BALKRISIND": "Auto Ancillary",
-    "MOTHERSON": "Auto Ancillary", "APOLLOTYRE": "Auto Ancillary",
-
-    # Oil, Gas & Energy / Utilities
-    "RELIANCE": "Oil & Gas", "ONGC": "Oil & Gas", "IOC": "Oil & Gas", "BPCL": "Oil & Gas",
-    "GAIL": "Oil & Gas", "PETRONET": "Oil & Gas", "OIL": "Oil & Gas", "NTPC": "Power",
-    "POWERGRID": "Power", "TATAPOWER": "Power", "ADANIPOWER": "Power", "ADANIENSOL": "Power",
-    "ADANIGREEN": "Power", "COALINDIA": "Mining & Energy", "NHPC": "Power",
-
-    # Metals & Mining
-    "TATASTEEL": "Metals", "JSWSTEEL": "Metals", "HINDALCO": "Metals", "JINDALSTEL": "Metals",
-    "NMDC": "Metals", "VEDL": "Metals", "NATIONALUM": "Metals", "SAIL": "Metals",
-
-    # Pharmaceuticals & Healthcare
-    "SUNPHARMA": "Pharma", "DRREDDY": "Pharma", "CIPLA": "Pharma", "DIVISLAB": "Pharma",
-    "LUPIN": "Pharma", "AUROPHARMA": "Pharma", "BIOCON": "Pharma", "TORNTPHARM": "Pharma",
-    "ALKEM": "Pharma", "ZYDUSLIFE": "Pharma", "GLENMARK": "Pharma", "APOLLOHOSP": "Healthcare",
-    "MAXHEALTH": "Healthcare", "SYNGENE": "Pharma",
-
-    # FMCG & Consumer Durables
-    "HUNVR": "FMCG", "ITC": "FMCG", "NESTLEIND": "FMCG", "BRITANNIA": "FMCG",
-    "TATACONSUM": "FMCG", "DABUR": "FMCG", "GODREJCP": "FMCG", "MARICO": "FMCG",
-    "COLPAL": "FMCG", "UBL": "FMCG", "MCDOWELL-N": "FMCG", "TITAN": "Consumer Durables",
-    "HAVELSS": "Consumer Durables", "VOLTAS": "Consumer Durables", "CROMPTON": "Consumer Durables",
-    "DIXON": "Consumer Durables", "AMBER": "Consumer Durables",
-
-    # Infrastructure, Capital Goods & Cement
-    "LT": "Infrastructure", "L&TFH": "Financials", "HAL": "Defense", "BEL": "Defense",
-    "BDL": "Defense", "MAZDOCK": "Defense", "COCHINSHIP": "Defense", "BHEL": "Capital Goods",
-    "SIEMENS": "Capital Goods", "ABB": "Capital Goods", "CUMMINSIND": "Capital Goods",
-    "ULTRACEMCO": "Cement", "GRASIM": "Cement", "AMBUJACEM": "Cement", "ACC": "Cement",
-    "DALBHARAT": "Cement", "SHREECEM": "Cement",
-
-    # Real Estate, Chemicals & Others
-    "DLF": "Real Estate", "GODREJPROP": "Real Estate", "OBEROIRLTY": "Real Estate",
-    "PHOENIXLTD": "Real Estate", "LODHA": "Real Estate", "UPL": "Chemicals",
-    "PIIND": "Chemicals", "SRF": "Chemicals", "AARTIIND": "Chemicals", "ATUL": "Chemicals",
-    "DEEPAKNTR": "Chemicals", "NAVINFLUOR": "Chemicals", "INDIGO": "Aviation",
-    "IRCTC": "Services", "CONCOR": "Logistics", "DELHIVERY": "Logistics"
-}
-
 def generate_delivery_screener():
     stocks_folder = "stocks"
     stock_files = glob.glob(os.path.join(stocks_folder, "*.csv"))
 
     if not stock_files:
-        print("❌ `stocks/` फ़ोल्डर में कोई फ़ाइल नहीं मिली।")
+        print("❌ `stocks/` फ़ोल्डर में कोई CSV फ़ाइल नहीं मिली।")
         return
 
     all_stocks_data = {}
     available_dates = set()
     all_symbols_set = set()
     all_sectors_set = set()
+    all_indices_set = set()
     stock_full_history = {}
+
+    print(f"📊 कुल {len(stock_files)} CSV फ़ाइलों से डेटा लोड किया जा रहा है...")
 
     for file in stock_files:
         try:
             df = pd.read_csv(file)
-            df.columns = df.columns.str.strip()
+            symbol = os.path.basename(file).replace(".csv", "").upper()
 
-            required_cols = ['DELIV_QTY', 'CLOSE_PRICE', 'TTL_TRD_QNTY', 'TURNOVER_LACS', 'DELIV_PER']
-            if not all(col in df.columns for col in required_cols):
+            if len(df) < 1:
                 continue
 
-            symbol = os.path.basename(file).replace(".csv", "").upper()
+            # Get Metadata from Enriched CSV
+            sector = str(df['SECTOR'].iloc[0]) if 'SECTOR' in df.columns else "Others"
+            indices_str = str(df['INDICES'].iloc[0]) if 'INDICES' in df.columns else "F&O"
+
+            all_stocks_data[symbol] = (df, sector, indices_str)
+            available_dates.update(df['Date'].astype(str).tolist())
+            all_symbols_set.add(symbol)
+            all_sectors_set.add(sector)
             
-            # Ensure SECTOR column in CSV
-            sector = SECTOR_MAP.get(symbol, "Others")
-            if 'SECTOR' not in df.columns:
-                df['SECTOR'] = sector
-                df.to_csv(file, index=False)
-            else:
-                first_sec = str(df['SECTOR'].iloc[0]).strip()
-                if first_sec and first_sec.lower() != 'nan':
-                    sector = first_sec
+            for idx in indices_str.split(", "):
+                if idx.strip():
+                    all_indices_set.add(idx.strip())
 
-            for col in ['DELIV_QTY', 'CLOSE_PRICE', 'TTL_TRD_QNTY', 'TURNOVER_LACS', 'DELIV_PER']:
-                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+            # History for Modal (Directly reading CSV Columns)
+            history_list = []
+            for i in range(len(df)):
+                history_list.append({
+                    'date': str(df.iloc[i]['Date']),
+                    'open': round(float(df.iloc[i].get('OPEN_PRICE', 0)), 2),
+                    'high': round(float(df.iloc[i].get('HIGH_PRICE', 0)), 2),
+                    'low': round(float(df.iloc[i].get('LOW_PRICE', 0)), 2),
+                    'close': round(float(df.iloc[i].get('CLOSE_PRICE', 0)), 2),
+                    'ttq': int(df.iloc[i].get('TTL_TRD_QNTY', 0)),
+                    'deliv': int(df.iloc[i].get('DELIV_QTY', 0)),
+                    'deliv_per': round(float(df.iloc[i].get('DELIV_PER', 0)), 2),
+                    'spike': round(float(df.iloc[i].get('MAX_SPIKE', 0)), 2),
+                    'chg_pct': round(float(df.iloc[i].get('PRICE_CHG_PCT', 0)), 2)
+                })
+            stock_full_history[symbol] = history_list
 
-            df['Date'] = pd.to_datetime(df['Date']).dt.strftime('%Y-%m-%d')
-            df = df.sort_values(by='Date', ascending=True)
-
-            if 'PREV_CLOSE' in df.columns:
-                df['PREV_CLOSE'] = pd.to_numeric(df['PREV_CLOSE'], errors='coerce')
-                df['PRICE_CHG_PCT'] = ((df['CLOSE_PRICE'] - df['PREV_CLOSE']) / df['PREV_CLOSE']) * 100
-            else:
-                prev_close = df['CLOSE_PRICE'].shift(1)
-                df['PRICE_CHG_PCT'] = ((df['CLOSE_PRICE'] - prev_close) / prev_close) * 100
-
-            df['PRICE_CHG_PCT'] = df['PRICE_CHG_PCT'].fillna(0.0)
-
-            if len(df) >= 11:
-                all_stocks_data[symbol] = (df, sector)
-                available_dates.update(df['Date'].tolist()[10:])
-                all_symbols_set.add(symbol)
-                all_sectors_set.add(sector)
-
-                # Modal History
-                history_list = []
-                for i in range(len(df)):
-                    today_deliv = float(df.iloc[i]['DELIV_QTY'])
-                    if i >= 10:
-                        prev_df = df.iloc[i-10:i]
-                        a2 = float(prev_df.iloc[-2:]['DELIV_QTY'].mean())
-                        a5 = float(prev_df.iloc[-5:]['DELIV_QTY'].mean())
-                        a7 = float(prev_df.iloc[-7:]['DELIV_QTY'].mean())
-                        a10 = float(prev_df['DELIV_QTY'].mean())
-                        
-                        r2 = (today_deliv / a2) if a2 > 0 else 0.0
-                        r5 = (today_deliv / a5) if a5 > 0 else 0.0
-                        r7 = (today_deliv / a7) if a7 > 0 else 0.0
-                        r10 = (today_deliv / a10) if a10 > 0 else 0.0
-                        spike = round(max(r2, r5, r7, r10), 2)
-                    else:
-                        spike = 0.0
-
-                    history_list.append({
-                        'date': str(df.iloc[i]['Date']),
-                        'ttq': int(df.iloc[i]['TTL_TRD_QNTY']),
-                        'deliv': int(today_deliv),
-                        'deliv_per': round(float(df.iloc[i]['DELIV_PER']), 2),
-                        'spike': spike
-                    })
-                
-                stock_full_history[symbol] = history_list
-
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"⚠️ Error reading {file}: {e}")
 
     sorted_dates = sorted(list(available_dates), reverse=True)
     sorted_symbols = sorted(list(all_symbols_set))
     sorted_sectors = sorted(list(all_sectors_set))
-    
+    sorted_indices = sorted(list(all_indices_set))
+
     target_dates = sorted_dates[:15]
     date_wise_results = {}
-    
+
     for d in target_dates:
         day_stocks = []
 
-        for symbol, (df, sector) in all_stocks_data.items():
-            if d in df['Date'].values:
-                idx = df[df['Date'] == d].index[0]
-                pos = df.index.get_loc(idx)
-                if pos >= 10:
-                    latest_row = df.iloc[pos]
-                    chg_pct = float(latest_row['PRICE_CHG_PCT'])
-                    day_stocks.append({'symbol': symbol, 'sector': sector, 'chg_pct': chg_pct, 'pos': pos, 'df': df, 'row': latest_row})
+        for symbol, (df, sector, indices_str) in all_stocks_data.items():
+            if d in df['Date'].astype(str).values:
+                latest_row = df[df['Date'].astype(str) == d].iloc[0]
+                chg_pct = float(latest_row.get('PRICE_CHG_PCT', 0.0))
+                day_stocks.append({
+                    'symbol': symbol, 
+                    'sector': sector, 
+                    'indices': indices_str, 
+                    'chg_pct': chg_pct, 
+                    'row': latest_row
+                })
 
+        # Calculate Rank Tagging (Top Gainers / Losers)
         day_stocks_sorted = sorted(day_stocks, key=lambda x: x['chg_pct'], reverse=True)
-        
-        top_gainers_map = {}
-        for rank, s in enumerate(day_stocks_sorted[:5], 1):
-            if s['chg_pct'] > 0:
-                top_gainers_map[s['symbol']] = rank
-
-        top_losers_map = {}
-        for rank, s in enumerate(reversed(day_stocks_sorted[-5:]), 1):
-            if s['chg_pct'] < 0:
-                top_losers_map[s['symbol']] = rank
+        top_gainers_map = {s['symbol']: rank for rank, s in enumerate(day_stocks_sorted[:5], 1) if s['chg_pct'] > 0}
+        top_losers_map = {s['symbol']: rank for rank, s in enumerate(reversed(day_stocks_sorted[-5:]), 1) if s['chg_pct'] < 0}
 
         results = []
         for item in day_stocks:
             symbol = item['symbol']
             sector = item['sector']
-            pos = item['pos']
-            df = item['df']
+            indices_str = item['indices']
             latest_row = item['row']
-            today_deliv = float(latest_row['DELIV_QTY'])
-            chg_pct = item['chg_pct']
-
-            prev_df = df.iloc[pos-10:pos]
-            avg_2d = float(prev_df.iloc[-2:]['DELIV_QTY'].mean())
-            avg_5d = float(prev_df.iloc[-5:]['DELIV_QTY'].mean())
-            avg_7d = float(prev_df.iloc[-7:]['DELIV_QTY'].mean())
-            avg_10d = float(prev_df['DELIV_QTY'].mean())
-
-            r2 = (today_deliv / avg_2d) if avg_2d > 0 else 0.0
-            r5 = (today_deliv / avg_5d) if avg_5d > 0 else 0.0
-            r7 = (today_deliv / avg_7d) if avg_7d > 0 else 0.0
-            r10 = (today_deliv / avg_10d) if avg_10d > 0 else 0.0
-
-            max_spike = max(r2, r5, r7, r10)
-            is_2x_val = bool(r2 >= 2.0 or r5 >= 2.0 or r7 >= 2.0 or r10 >= 2.0)
-
             tag = top_gainers_map.get(symbol, -top_losers_map.get(symbol, 0))
 
             results.append([
-                str(d),                         # 0: Date
-                str(symbol),                    # 1: Symbol
-                round(float(max_spike), 2),     # 2: Max Spike
-                round(float(latest_row['CLOSE_PRICE']), 2), # 3: Close
-                int(latest_row['TTL_TRD_QNTY']),# 4: Traded Qty
-                round(float(latest_row['TURNOVER_LACS']), 2), # 5: Turnover
-                int(today_deliv),               # 6: Delivery Qty
-                round(float(latest_row['DELIV_PER']), 2), # 7: Delivery %
-                round(float(r2), 2),            # 8: R2
-                round(float(r5), 2),            # 9: R5
-                round(float(r7), 2),            # 10: R7
-                round(float(r10), 2),           # 11: R10
-                int(avg_2d),                    # 12: Avg 2D
-                int(avg_5d),                    # 13: Avg 5D
-                int(avg_7d),                    # 14: Avg 7D
-                int(avg_10d),                   # 15: Avg 10D
-                1 if is_2x_val else 0,          # 16: Is2x
-                round(chg_pct, 2),              # 17: Price Change %
-                tag,                            # 18: Rank Tag
-                str(sector)                     # 19: Sector Name
+                str(d),                                                     # 0: Date
+                str(symbol),                                                # 1: Symbol
+                round(float(latest_row.get('MAX_SPIKE', 0)), 2),            # 2: Max Spike
+                round(float(latest_row.get('CLOSE_PRICE', 0)), 2),          # 3: Close
+                int(latest_row.get('TTL_TRD_QNTY', 0)),                     # 4: Traded Qty
+                round(float(latest_row.get('TURNOVER_LACS', 0)), 2),        # 5: Turnover
+                int(latest_row.get('DELIV_QTY', 0)),                        # 6: Delivery Qty
+                round(float(latest_row.get('DELIV_PER', 0)), 2),            # 7: Delivery %
+                round(float(latest_row.get('R2', 0)), 2),                   # 8: R2
+                round(float(latest_row.get('R5', 0)), 2),                   # 9: R5
+                round(float(latest_row.get('R7', 0)), 2),                   # 10: R7
+                round(float(latest_row.get('R10', 0)), 2),                  # 11: R10
+                int(latest_row.get('AVG_DELIV_2D', 0)),                     # 12: Avg 2D
+                int(latest_row.get('AVG_DELIV_5D', 0)),                     # 13: Avg 5D
+                int(latest_row.get('AVG_DELIV_7D', 0)),                     # 14: Avg 7D
+                int(latest_row.get('AVG_DELIV_10D', 0)),                    # 15: Avg 10D
+                int(latest_row.get('IS_2X', 0)),                            # 16: Is2x
+                round(float(latest_row.get('PRICE_CHG_PCT', 0)), 2),        # 17: Price Change %
+                tag,                                                        # 18: Rank Tag
+                str(sector),                                                # 19: Sector Name
+                str(indices_str),                                           # 20: Indices String
+                round(float(latest_row.get('OPEN_PRICE', 0)), 2),           # 21: Open
+                round(float(latest_row.get('HIGH_PRICE', 0)), 2),           # 22: High
+                round(float(latest_row.get('LOW_PRICE', 0)), 2)             # 23: Low
             ])
         date_wise_results[d] = sorted(results, key=lambda x: x[2], reverse=True)
 
     json_data = json.dumps(date_wise_results, separators=(',', ':'))
     json_history = json.dumps(stock_full_history, separators=(',', ':'))
-    
+
     min_date = target_dates[-1] if target_dates else ""
     max_date = target_dates[0] if target_dates else ""
 
     symbol_options = '<option value="ALL">-- ALL SYMBOLS --</option>' + "".join([f'<option value="{s}">{s}</option>' for s in sorted_symbols])
     sector_options = '<option value="ALL">-- ALL SECTORS --</option>' + "".join([f'<option value="{sec}">{sec}</option>' for sec in sorted_sectors])
+    index_options = '<option value="ALL">-- ALL INDICES --</option>' + "".join([f'<option value="{idx}">{idx}</option>' for idx in sorted_indices])
 
     html_content = f"""<!DOCTYPE html>
 <html lang="hi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>F&O Stock Screener</title>
+    <title>Stock Screener Dashboard</title>
     <style>
-        body {{ font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f8f9fa; margin: 0; padding: 10px; color: #212529; }}
-        .container {{ background: #fff; padding: 12px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }}
-        h2 {{ color: #1e293b; font-size: 18px; margin: 0 0 10px 0; }}
-        .controls {{ display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }}
-        .search-box, .select-box, .date-input {{ padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12px; outline: none; }}
-        .search-box {{ flex: 1; min-width: 130px; }}
-        .table-responsive {{ width: 100%; overflow-x: auto; max-height: 70vh; }}
+        body {{ font-family: system-ui, -apple-system, sans-serif; background: #f8f9fa; margin: 0; padding: 12px; color: #1e293b; }}
+        .container {{ background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }}
+        h2 {{ margin: 0 0 12px 0; font-size: 20px; color: #0f172a; }}
+        .controls {{ display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }}
+        .select-box, .date-input, .search-box {{ padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; outline: none; }}
+        .search-box {{ flex: 1; min-width: 140px; }}
+        .table-responsive {{ width: 100%; overflow-x: auto; max-height: 72vh; }}
         table {{ width: 100%; border-collapse: collapse; font-size: 12px; }}
-        th, td {{ padding: 6px 8px; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: middle; }}
-        th {{ background: #10b981; color: white; cursor: pointer; font-size: 11px; position: sticky; top: 0; z-index: 10; }}
-        tr:nth-child(even) {{ background: #f8fafc; }}
+        th, td {{ padding: 8px 10px; border-bottom: 1px solid #e2e8f0; text-align: left; }}
+        th {{ background: #10b981; color: white; cursor: pointer; position: sticky; top: 0; z-index: 10; font-weight: 600; }}
         tr.clickable-row {{ cursor: pointer; }}
-        tr.clickable-row:hover {{ background: #e2e8f0; }}
-        .badge-green {{ background: #10b981; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 11px; }}
-        .badge-sector {{ background: #e2e8f0; color: #334155; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; display: inline-block; }}
+        tr.clickable-row:hover {{ background: #f1f5f9; }}
         .num {{ text-align: right; }}
-        .filter-group {{ display: flex; gap: 4px; align-items: center; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 11px; }}
+        .badge-green {{ background: #10b981; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 11px; }}
+        .badge-sector {{ background: #e2e8f0; color: #334155; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; }}
+        .badge-index {{ background: #dbeafe; color: #1e40af; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 2px; }}
 
-        /* Slanted Fraction Rank Box */
-        .rank-slanted-box {{
-            display: inline-flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-weight: bold;
-            line-height: 1.1;
-            min-width: 44px;
-            text-align: center;
-            position: relative;
-        }}
-        .rank-top {{ font-size: 10px; font-weight: 800; align-self: flex-start; margin-left: 2px; }}
-        .rank-slanted-line {{
-            width: 100%;
-            height: 1.5px;
-            margin: 1px 0;
-            transform: rotate(-12deg);
-        }}
-        .rank-bottom {{ font-size: 9px; font-weight: 700; align-self: flex-end; margin-right: 2px; }}
-
+        /* Slanted Rank Box */
+        .rank-slanted-box {{ display: inline-flex; flex-direction: column; padding: 2px 8px; border-radius: 4px; font-weight: bold; line-height: 1.1; min-width: 46px; text-align: center; }}
         .fraction-gainer {{ background: #dcfce7; color: #15803d; border: 1px solid #86efac; }}
-        .fraction-gainer .rank-slanted-line {{ background: #16a34a; }}
-
         .fraction-loser {{ background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }}
-        .fraction-loser .rank-slanted-line {{ background: #dc2626; }}
 
-        .normal-pct-green {{ color: #16a34a; font-weight: bold; font-size: 11px; }}
-        .normal-pct-red {{ color: #dc2626; font-weight: bold; font-size: 11px; }}
-
-        /* Modal Styles */
-        .tag-gainer {{ background: #dcfce7; color: #15803d; border: 1px solid #86efac; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 4px; display: inline-block; }}
-        .tag-loser {{ background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 4px; display: inline-block; }}
-        .tag-normal {{ background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 4px; display: inline-block; }}
-
+        /* Modal Overlay */
         .modal-overlay {{ display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; padding: 12px; box-sizing: border-box; }}
-        .modal-box {{ background: #fff; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; border-radius: 12px; padding: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative; animation: popIn 0.2s ease-out; }}
-        @keyframes popIn {{ from {{ transform: scale(0.9); opacity: 0; }} to {{ transform: scale(1); opacity: 1; }} }}
+        .modal-box {{ background: #fff; width: 100%; max-width: 540px; max-height: 90vh; overflow-y: auto; border-radius: 12px; padding: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }}
         .modal-header {{ display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px; margin-bottom: 12px; }}
-        .modal-title {{ font-size: 16px; font-weight: bold; color: #0f172a; }}
-        .close-btn {{ background: #f1f5f9; border: none; font-size: 16px; font-weight: bold; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; color: #64748b; }}
-        .detail-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px; }}
+        .close-btn {{ background: #f1f5f9; border: none; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; color: #64748b; font-weight: bold; }}
+        .detail-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px; margin-top: 10px; }}
         .detail-item {{ background: #f8fafc; padding: 8px; border-radius: 6px; border: 1px solid #e2e8f0; }}
-        .detail-label {{ color: #64748b; font-size: 10px; text-transform: uppercase; margin-bottom: 2px; }}
-        .detail-value {{ font-size: 13px; font-weight: bold; color: #1e293b; }}
-        .highlight {{ color: #10b981; }}
-
-        /* Modal Footer History Table */
-        .modal-divider {{ border: 0; height: 1px; background: #cbd5e1; margin: 16px 0 12px 0; }}
-        .history-title {{ font-size: 13px; font-weight: bold; color: #334155; margin-bottom: 8px; }}
-        .history-table {{ width: 100%; border-collapse: collapse; font-size: 11px; }}
-        .history-table th {{ background: #f1f5f9; color: #475569; position: static; text-align: left; padding: 4px 6px; }}
+        .detail-label {{ color: #64748b; font-size: 10px; text-transform: uppercase; }}
+        .detail-value {{ font-size: 13px; font-weight: bold; color: #1e293b; margin-top: 2px; }}
+        .history-table {{ width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; }}
+        .history-table th {{ background: #f1f5f9; color: #475569; position: static; padding: 4px 6px; }}
         .history-table td {{ padding: 4px 6px; border-bottom: 1px solid #f1f5f9; }}
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>🚀 F&O Fast Stock Screener</h2>
+        <h2>🚀 Stock Delivery & OHLC Screener</h2>
         
         <div class="controls">
-            <div class="filter-group">
-                <label>Symbol:</label>
-                <select id="singleSymbolSelect" class="select-box" onchange="renderData()">
-                    {symbol_options}
-                </select>
-            </div>
+            <select id="sortBySelect" class="select-box" onchange="renderData()">
+                <option value="spike">Max Spike (Highest)</option>
+                <option value="gainers">Top Rank % Gainers</option>
+                <option value="losers">Top Rank % Losers</option>
+            </select>
 
-            <div class="filter-group">
-                <label>Sector:</label>
-                <select id="sectorSelect" class="select-box" onchange="renderData()">
-                    {sector_options}
-                </select>
-            </div>
+            <select id="singleSymbolSelect" class="select-box" onchange="renderData()">
+                {symbol_options}
+            </select>
 
-            <div class="filter-group">
-                <label>फ़िल्टर:</label>
-                <select id="modeSelect" class="select-box" onchange="renderData()">
-                    <option value="2x">Spike >= 2x Only</option>
-                    <option value="all">All Stocks (No Filter)</option>
-                </select>
-            </div>
+            <select id="indexSelect" class="select-box" onchange="renderData()">
+                {index_options}
+            </select>
 
-            <div class="filter-group">
-                <label>Date:</label>
-                <input type="date" id="startDate" class="date-input" value="{max_date}" min="{min_date}" max="{max_date}" onchange="renderData()">
-                <span>से</span>
-                <input type="date" id="endDate" class="date-input" value="{max_date}" min="{min_date}" max="{max_date}" onchange="renderData()">
-            </div>
+            <select id="sectorSelect" class="select-box" onchange="renderData()">
+                {sector_options}
+            </select>
+
+            <select id="modeSelect" class="select-box" onchange="renderData()">
+                <option value="2x">Spike >= 2x Only</option>
+                <option value="all">All Stocks</option>
+            </select>
+
+            <input type="date" id="startDate" class="date-input" value="{max_date}" min="{min_date}" max="{max_date}" onchange="renderData()">
+            <input type="date" id="endDate" class="date-input" value="{max_date}" min="{min_date}" max="{max_date}" onchange="renderData()">
 
             <input type="text" id="searchInput" class="search-box" onkeyup="filterTable()" placeholder="🔍 Quick Search...">
         </div>
@@ -366,7 +218,7 @@ def generate_delivery_screener():
                     <tr>
                         <th onclick="sortTable(0)">Date ↕</th>
                         <th onclick="sortTable(1)">Symbol ↕</th>
-                        <th>Rank / Change</th>
+                        <th onclick="sortTable(2, true)">Rank % Change ↕</th>
                         <th class="num" onclick="sortTable(3, true)">Max Spike ↕</th>
                         <th class="num" onclick="sortTable(4, true)">Close (₹) ↕</th>
                     </tr>
@@ -381,15 +233,24 @@ def generate_delivery_screener():
         <div class="modal-box" onclick="event.stopPropagation()">
             <div class="modal-header">
                 <div>
-                    <span id="mSymbol" class="modal-title">SYMBOL</span>
-                    <span id="mSectorBadge" class="badge-sector" style="margin-left: 6px;">Sector</span>
+                    <span id="mSymbol" style="font-size:16px; font-weight:bold;">SYMBOL</span>
+                    <span id="mSectorBadge" class="badge-sector">Sector</span>
+                    <div id="mIndexBadges" style="margin-top: 4px;"></div>
                     <div id="mDateTag" style="margin-top: 4px;"></div>
                 </div>
                 <button class="close-btn" onclick="hideModal()">✕</button>
             </div>
+
+            <!-- OHLC Section -->
+            <div style="background: #f1f5f9; padding: 8px; border-radius: 6px; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; text-align: center; gap: 4px;">
+                <div><div style="font-size: 10px; color: #64748b;">OPEN</div><div id="mOpen" style="font-size: 12px; font-weight: bold;">₹0</div></div>
+                <div><div style="font-size: 10px; color: #16a34a;">HIGH</div><div id="mHigh" style="font-size: 12px; font-weight: bold; color: #16a34a;">₹0</div></div>
+                <div><div style="font-size: 10px; color: #dc2626;">LOW</div><div id="mLow" style="font-size: 12px; font-weight: bold; color: #dc2626;">₹0</div></div>
+                <div><div style="font-size: 10px; color: #0284c7;">CLOSE</div><div id="mClose" style="font-size: 12px; font-weight: bold; color: #0284c7;">₹0</div></div>
+            </div>
+
             <div class="detail-grid">
-                <div class="detail-item"><div class="detail-label">Close Price</div><div id="mClose" class="detail-value">₹0.00</div></div>
-                <div class="detail-item"><div class="detail-label">Max Spike</div><div id="mSpike" class="detail-value highlight">0x</div></div>
+                <div class="detail-item"><div class="detail-label">Max Spike</div><div id="mSpike" class="detail-value" style="color:#10b981;">0x</div></div>
                 <div class="detail-item"><div class="detail-label">Delivery Qty</div><div id="mDelivQty" class="detail-value">0</div></div>
                 <div class="detail-item"><div class="detail-label">Delivery %</div><div id="mDelivPer" class="detail-value">0%</div></div>
                 <div class="detail-item"><div class="detail-label">Traded Qty</div><div id="mTradedQty" class="detail-value">0</div></div>
@@ -400,17 +261,16 @@ def generate_delivery_screener():
                 <div class="detail-item"><div class="detail-label">10D Ratio (Avg)</div><div id="mR10" class="detail-value">0x (0)</div></div>
             </div>
 
-            <!-- Horizontal Divider & 7 Days History -->
-            <hr class="modal-divider">
-            <div class="history-title">📅 पिछले 7 दिनों का रिकॉर्ड (Last 7 Days History):</div>
+            <hr style="border: 0; height: 1px; background: #cbd5e1; margin: 16px 0 12px 0;">
+            <div style="font-size: 13px; font-weight: bold; color: #334155;">📅 Recent OHLC & Delivery History:</div>
             <div style="overflow-x: auto;">
                 <table class="history-table">
                     <thead>
                         <tr>
                             <th>Date</th>
-                            <th class="num">TT Qty</th>
+                            <th class="num">O / H / L / C</th>
                             <th class="num">Deliv Qty</th>
-                            <th class="num">Deliv %</th>
+                            <th class="num">Change %</th>
                             <th class="num">Spike</th>
                         </tr>
                     </thead>
@@ -433,8 +293,10 @@ def generate_delivery_screener():
         }}
 
         function renderData() {{
+            const sortBy = document.getElementById("sortBySelect").value;
             const selectedSymbol = document.getElementById("singleSymbolSelect").value;
             const selectedSector = document.getElementById("sectorSelect").value;
+            const selectedIndex = document.getElementById("indexSelect").value;
             const mode = document.getElementById("modeSelect").value;
             const startDate = document.getElementById("startDate").value;
             const endDate = document.getElementById("endDate").value;
@@ -448,17 +310,20 @@ def generate_delivery_screener():
                     storeData[date].forEach(r => {{
                         let matchSymbol = (selectedSymbol === "ALL" || r[1] === selectedSymbol);
                         let matchSector = (selectedSector === "ALL" || r[19] === selectedSector);
+                        let matchIndex = (selectedIndex === "ALL" || r[20].includes(selectedIndex));
                         let matchMode = (selectedSymbol !== "ALL") ? true : (mode === "all" || r[16] === 1);
 
-                        if (matchSymbol && matchSector && matchMode) {{
+                        if (matchSymbol && matchSector && matchIndex && matchMode) {{
                             currentRowsData.push(r);
                         }}
                     }});
                 }}
             }});
 
-            if (selectedSymbol !== "ALL") {{
-                currentRowsData.sort((a, b) => b[0].localeCompare(a[0]));
+            if (sortBy === "gainers") {{
+                currentRowsData.sort((a, b) => b[17] - a[17]);
+            }} else if (sortBy === "losers") {{
+                currentRowsData.sort((a, b) => a[17] - b[17]);
             }} else {{
                 currentRowsData.sort((a, b) => b[2] - a[2]);
             }}
@@ -475,20 +340,12 @@ def generate_delivery_screener():
                 let pctStr = chgPct > 0 ? `+${{chgPct.toFixed(2)}}%` : `${{chgPct.toFixed(2)}}%`;
                 
                 if (rankTag > 0) {{
-                    tagHtml = `<div class="rank-slanted-box fraction-gainer">
-                        <span class="rank-top">${{getSuffix(rankTag)}}</span>
-                        <div class="rank-slanted-line"></div>
-                        <span class="rank-bottom">${{pctStr}}</span>
-                    </div>`;
+                    tagHtml = `<div class="rank-slanted-box fraction-gainer"><span>${{getSuffix(rankTag)}}</span><span>${{pctStr}}</span></div>`;
                 }} else if (rankTag < 0) {{
-                    tagHtml = `<div class="rank-slanted-box fraction-loser">
-                        <span class="rank-top">${{getSuffix(Math.abs(rankTag))}}</span>
-                        <div class="rank-slanted-line"></div>
-                        <span class="rank-bottom">${{pctStr}}</span>
-                    </div>`;
+                    tagHtml = `<div class="rank-slanted-box fraction-loser"><span>${{getSuffix(Math.abs(rankTag))}}</span><span>${{pctStr}}</span></div>`;
                 }} else {{
-                    let colorClass = chgPct >= 0 ? 'normal-pct-green' : 'normal-pct-red';
-                    tagHtml = `<span class="${{colorClass}}">${{pctStr}}</span>`;
+                    let colorClass = chgPct >= 0 ? 'color:#16a34a; font-weight:bold;' : 'color:#dc2626; font-weight:bold;';
+                    tagHtml = `<span style="${{colorClass}}">${{pctStr}}</span>`;
                 }}
 
                 htmlBuffer += `<tr class="clickable-row" onclick="showModal(${{idx}})">
@@ -510,26 +367,20 @@ def generate_delivery_screener():
 
             const symbol = r[1];
             const currentDate = r[0];
-            const sector = r[19];
 
             document.getElementById("mSymbol").innerText = symbol;
-            document.getElementById("mSectorBadge").innerText = sector;
-            
-            let tagHtml = `<span style="font-size: 11px; color: #64748b;">${{currentDate}}</span>`;
-            let pctVal = r[17] > 0 ? `+${{r[17]}}%` : `${{r[17]}}%`;
-            let rankTag = r[18];
-            
-            if (rankTag > 0) {{
-                tagHtml += ` <span class="tag-gainer">🟢 Top ${{rankTag}} Gainer (${{pctVal}})</span>`;
-            }} else if (rankTag < 0) {{
-                tagHtml += ` <span class="tag-loser">🔴 Top ${{Math.abs(rankTag)}} Loser (${{pctVal}})</span>`;
-            }} else {{
-                let colorClass = r[17] >= 0 ? 'color: #16a34a;' : 'color: #dc2626;';
-                tagHtml += ` <span class="tag-normal" style="${{colorClass}}">Change: ${{pctVal}}</span>`;
-            }}
+            document.getElementById("mSectorBadge").innerText = r[19];
 
-            document.getElementById("mDateTag").innerHTML = tagHtml;
+            let indicesList = r[20].split(', ');
+            document.getElementById("mIndexBadges").innerHTML = indicesList.map(idx => `<span class="badge-index">${{idx}}</span>`).join('');
+            document.getElementById("mDateTag").innerHTML = `<span style="font-size: 11px; color: #64748b;">${{currentDate}}</span>`;
+
+            // OHLC Values
+            document.getElementById("mOpen").innerText = `₹${{r[21].toFixed(2)}}`;
+            document.getElementById("mHigh").innerText = `₹${{r[22].toFixed(2)}}`;
+            document.getElementById("mLow").innerText = `₹${{r[23].toFixed(2)}}`;
             document.getElementById("mClose").innerText = `₹${{r[3].toFixed(2)}}`;
+
             document.getElementById("mSpike").innerText = `${{r[2]}}x`;
             document.getElementById("mDelivQty").innerText = r[6].toLocaleString();
             document.getElementById("mDelivPer").innerText = `${{r[7].toFixed(2)}}%`;
@@ -541,7 +392,7 @@ def generate_delivery_screener():
             document.getElementById("mR7").innerText = `${{r[10]}}x (${{r[14].toLocaleString()}})`;
             document.getElementById("mR10").innerText = `${{r[11]}}x (${{r[15].toLocaleString()}})`;
 
-            // Populate 7 Days History Table
+            // History Table
             const histList = stockHistory[symbol] || [];
             let currIdx = histList.findIndex(h => h.date === currentDate);
             if (currIdx === -1) currIdx = histList.length - 1;
@@ -551,11 +402,13 @@ def generate_delivery_screener():
 
             let histBuffer = "";
             recent7Days.forEach(h => {{
+                let pctColor = h.chg_pct >= 0 ? '#16a34a' : '#dc2626';
+                let pctStr = h.chg_pct > 0 ? `+${{h.chg_pct}}%` : `${{h.chg_pct}}%`;
                 histBuffer += `<tr>
                     <td><b>${{h.date}}</b></td>
-                    <td class="num">${{h.ttq.toLocaleString()}}</td>
+                    <td class="num">${{h.open}} / ${{h.high}} / ${{h.low}} / <b>${{h.close}}</b></td>
                     <td class="num">${{h.deliv.toLocaleString()}}</td>
-                    <td class="num">${{h.deliv_per}}%</td>
+                    <td class="num" style="color:${{pctColor}}; font-weight:bold;">${{pctStr}}</td>
                     <td class="num"><b style="color:#10b981;">${{h.spike}}x</b></td>
                 </tr>`;
             }});
@@ -564,15 +417,8 @@ def generate_delivery_screener():
             document.getElementById("detailsModal").style.display = "flex";
         }}
 
-        function hideModal() {{
-            document.getElementById("detailsModal").style.display = "none";
-        }}
-
-        function closeModal(event) {{
-            if (event.target.id === "detailsModal") {{
-                hideModal();
-            }}
-        }}
+        function hideModal() {{ document.getElementById("detailsModal").style.display = "none"; }}
+        function closeModal(event) {{ if (event.target.id === "detailsModal") hideModal(); }}
 
         function filterTable() {{
             let input = document.getElementById("searchInput").value.toUpperCase();
@@ -580,12 +426,8 @@ def generate_delivery_screener():
             for (let i = 0; i < tr.length; i++) {{
                 let tdSymbol = tr[i].getElementsByTagName("td")[1];
                 if (tdSymbol) {{
-                    let symbolText = tdSymbol.textContent || tdSymbol.innerText;
-                    if (symbolText.toUpperCase().indexOf(input) > -1) {{
-                        tr[i].style.display = "";
-                    }} else {{
-                        tr[i].style.display = "none";
-                    }}
+                    let text = tdSymbol.textContent || tdSymbol.innerText;
+                    tr[i].style.display = text.toUpperCase().indexOf(input) > -1 ? "" : "none";
                 }}
             }}
         }}
@@ -597,9 +439,9 @@ def generate_delivery_screener():
             table.dataset.sortDir = dir;
 
             rows.sort((a, b) => {{
-                let x = a.cells[n].innerText.replace(/,/g, '').replace('%', '').replace('x', '').trim();
-                let y = b.cells[n].innerText.replace(/,/g, '').replace('%', '').replace('x', '').trim();
-                return isNumeric ? (dir === "asc" ? x - y : y - x) : (dir === "asc" ? x.localeCompare(y) : y.localeCompare(x));
+                let x = a.cells[n].innerText.replace(/,/g, '').replace('%', '').replace('x', '').replace('+', '').trim();
+                let y = b.cells[n].innerText.replace(/,/g, '').replace('%', '').replace('x', '').replace('+', '').trim();
+                return isNumeric ? (dir === "asc" ? parseFloat(x) - parseFloat(y) : parseFloat(y) - parseFloat(x)) : (dir === "asc" ? x.localeCompare(y) : y.localeCompare(x));
             }});
             rows.forEach(row => document.getElementById("tableBody").appendChild(row));
         }}
@@ -613,7 +455,7 @@ def generate_delivery_screener():
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(html_content)
 
-    print("✅ Main Table से Sector Column हटा दिया गया है। Sector अब केवल Popup और Dropdown में रहेगा!")
+    print("✅ `index.html` सफलतापूर्वक तैयार हो गया है!")
 
 if __name__ == "__main__":
     generate_delivery_screener()
