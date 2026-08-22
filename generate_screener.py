@@ -155,9 +155,9 @@ def generate_delivery_screener():
         .num {{ text-align: right; }}
         .filter-group {{ display: flex; gap: 4px; align-items: center; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 11px; }}
 
-        /* Small Table Tag Badges */
-        .tbl-gainer {{ background: #dcfce7; color: #15803d; border: 1px solid #86efac; padding: 1px 4px; border-radius: 3px; font-size: 9px; font-weight: bold; display: inline-block; white-space: nowrap; }}
-        .tbl-loser {{ background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; padding: 1px 4px; border-radius: 3px; font-size: 9px; font-weight: bold; display: inline-block; white-space: nowrap; }}
+        /* Clean Mini Rank Badges */
+        .tbl-gainer {{ background: #dcfce7; color: #15803d; border: 1px solid #86efac; padding: 1px 5px; border-radius: 3px; font-size: 10px; font-weight: bold; display: inline-block; }}
+        .tbl-loser {{ background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; padding: 1px 5px; border-radius: 3px; font-size: 10px; font-weight: bold; display: inline-block; }}
 
         /* Modal Badges */
         .tag-gainer {{ background: #dcfce7; color: #15803d; border: 1px solid #86efac; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 4px; display: inline-block; }}
@@ -213,7 +213,7 @@ def generate_delivery_screener():
                     <tr>
                         <th onclick="sortTable(0)">Date ↕</th>
                         <th onclick="sortTable(1)">Symbol ↕</th>
-                        <th>Tag</th>
+                        <th>Rank</th>
                         <th class="num" onclick="sortTable(3, true)">Max Spike ↕</th>
                         <th class="num" onclick="sortTable(4, true)">Close (₹) ↕</th>
                     </tr>
@@ -298,9 +298,9 @@ def generate_delivery_screener():
                 let tagHtml = '-';
                 
                 if (rankTag > 0) {{
-                    tagHtml = `<span class="tbl-gainer">Gainer/${{getSuffix(rankTag)}}</span>`;
+                    tagHtml = `<span class="tbl-gainer">${{getSuffix(rankTag)}}</span>`;
                 }} else if (rankTag < 0) {{
-                    tagHtml = `<span class="tbl-loser">Loser/${{getSuffix(Math.abs(rankTag))}}</span>`;
+                    tagHtml = `<span class="tbl-loser">${{getSuffix(Math.abs(rankTag))}}</span>`;
                 }}
 
                 htmlBuffer += `<tr class="clickable-row" onclick="showModal(${{idx}})">
@@ -395,7 +395,7 @@ def generate_delivery_screener():
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(html_content)
 
-    print("✅ `index.html` टेबल में छोटे टैग कॉलम (Gainer/4th) के साथ अपडेट हो गया!")
+    print("✅ `index.html` टेबल में सिर्फ Rank (1st, 2nd...) और Color Badges के साथ अपडेट हो गया!")
 
 if __name__ == "__main__":
     generate_delivery_screener()
