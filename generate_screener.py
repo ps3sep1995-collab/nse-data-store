@@ -14,6 +14,7 @@ def generate_delivery_screener():
     all_stocks_data = {}
     available_dates = set()
     all_symbols_set = set()
+    stock_full_history = {}
 
     for file in stock_files:
         try:
@@ -44,6 +45,36 @@ def generate_delivery_screener():
                 all_stocks_data[symbol] = df
                 available_dates.update(df['Date'].tolist()[10:])
                 all_symbols_set.add(symbol)
+
+                # Pre-calculate history for Modal Table
+                history_list = []
+                for i in range(len(df)):
+                    today_deliv = float(df.iloc[i]['DELIV_QTY'])
+                    if i >= 10:
+                        prev_df = df.iloc[i-10:i]
+                        a2 = float(prev_df.iloc[-2:]['DELIV_QTY'].mean())
+                        a5 = float(prev_df.iloc[-5:]['DELIV_QTY'].mean())
+                        a7 = float(prev_df.iloc[-7:]['DELIV_QTY'].mean())
+                        a10 = float(prev_df['DELIV_QTY'].mean())
+                        
+                        r2 = (today_deliv / a2) if a2 > 0 else 0.0
+                        r5 = (today_deliv / a5) if a5 > 0 else 0.0
+                        r7 = (today_deliv / a7) if a7 > 0 else 0.0
+                        r10 = (today_deliv / a10) if a10 > 0 else 0.0
+                        spike = round(max(r2, r5, r7, r10), 2)
+                    else:
+                        spike = 0.0
+
+                    history_list.append({
+                        'date': str(df.iloc[i]['Date']),
+                        'ttq': int(df.iloc[i]['TTL_TRD_QNTY']),
+                        'deliv': int(today_deliv),
+                        'deliv_per': round(float(df.iloc[i]['DELIV_PER']), 2),
+                        'spike': spike
+                    })
+                
+                stock_full_history[symbol] = history_list
+
         except Exception:
             pass
 
@@ -126,6 +157,8 @@ def generate_delivery_screener():
         date_wise_results[d] = sorted(results, key=lambda x: x[2], reverse=True)
 
     json_data = json.dumps(date_wise_results, separators=(',', ':'))
+    json_history = json.dumps(stock_full_history, separators=(',', ':'))
+    
     min_date = target_dates[-1] if target_dates else ""
     max_date = target_dates[0] if target_dates else ""
 
@@ -186,17 +219,17 @@ def generate_delivery_screener():
         .fraction-loser {{ background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }}
         .fraction-loser .rank-slanted-line {{ background: #dc2626; }}
 
-        /* Normal % Text Style (Non-Top 5) */
+        /* Normal % Text Style */
         .normal-pct-green {{ color: #16a34a; font-weight: bold; font-size: 11px; }}
         .normal-pct-red {{ color: #dc2626; font-weight: bold; font-size: 11px; }}
 
-        /* Modal Badges */
+        /* Modal Styles */
         .tag-gainer {{ background: #dcfce7; color: #15803d; border: 1px solid #86efac; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 4px; display: inline-block; }}
         .tag-loser {{ background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 4px; display: inline-block; }}
         .tag-normal {{ background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 4px; display: inline-block; }}
 
         .modal-overlay {{ display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; padding: 12px; box-sizing: border-box; }}
-        .modal-box {{ background: #fff; width: 100%; max-width: 420px; border-radius: 12px; padding: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative; animation: popIn 0.2s ease-out; }}
+        .modal-box {{ background: #fff; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; border-radius: 12px; padding: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative; animation: popIn 0.2s ease-out; }}
         @keyframes popIn {{ from {{ transform: scale(0.9); opacity: 0; }} to {{ transform: scale(1); opacity: 1; }} }}
         .modal-header {{ display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px; margin-bottom: 12px; }}
         .modal-title {{ font-size: 16px; font-weight: bold; color: #0f172a; }}
@@ -206,6 +239,13 @@ def generate_delivery_screener():
         .detail-label {{ color: #64748b; font-size: 10px; text-transform: uppercase; margin-bottom: 2px; }}
         .detail-value {{ font-size: 13px; font-weight: bold; color: #1e293b; }}
         .highlight {{ color: #10b981; }}
+
+        /* Modal Footer History Table */
+        .modal-divider {{ border: 0; height: 1px; background: #cbd5e1; margin: 16px 0 12px 0; }}
+        .history-title {{ font-size: 13px; font-weight: bold; color: #334155; margin-bottom: 8px; }}
+        .history-table {{ width: 100%; border-collapse: collapse; font-size: 11px; }}
+        .history-table th {{ background: #f1f5f9; color: #475569; position: static; text-align: left; padding: 4px 6px; }}
+        .history-table td {{ padding: 4px 6px; border-bottom: 1px solid #f1f5f9; }}
     </style>
 </head>
 <body>
@@ -276,11 +316,30 @@ def generate_delivery_screener():
                 <div class="detail-item"><div class="detail-label">7D Ratio (Avg)</div><div id="mR7" class="detail-value">0x (0)</div></div>
                 <div class="detail-item"><div class="detail-label">10D Ratio (Avg)</div><div id="mR10" class="detail-value">0x (0)</div></div>
             </div>
+
+            <!-- Horizontal Divider & 7 Days History -->
+            <hr class="modal-divider">
+            <div class="history-title">📅 पिछले 7 दिनों का रिकॉर्ड (Last 7 Days History):</div>
+            <div style="overflow-x: auto;">
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th class="num">TT Qty</th>
+                            <th class="num">Deliv Qty</th>
+                            <th class="num">Deliv %</th>
+                            <th class="num">Spike</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mHistoryBody"></tbody>
+                </table>
+            </div>
         </div>
     </div>
 
     <script>
         const storeData = {json_data};
+        const stockHistory = {json_history};
         let currentRowsData = [];
 
         function getSuffix(num) {{
@@ -331,21 +390,18 @@ def generate_delivery_screener():
                 let pctStr = chgPct > 0 ? `+${{chgPct.toFixed(2)}}%` : `${{chgPct.toFixed(2)}}%`;
                 
                 if (rankTag > 0) {{
-                    // Top 5 Gainer
                     tagHtml = `<div class="rank-slanted-box fraction-gainer">
                         <span class="rank-top">${{getSuffix(rankTag)}}</span>
                         <div class="rank-slanted-line"></div>
                         <span class="rank-bottom">${{pctStr}}</span>
                     </div>`;
                 }} else if (rankTag < 0) {{
-                    // Top 5 Loser
                     tagHtml = `<div class="rank-slanted-box fraction-loser">
                         <span class="rank-top">${{getSuffix(Math.abs(rankTag))}}</span>
                         <div class="rank-slanted-line"></div>
                         <span class="rank-bottom">${{pctStr}}</span>
                     </div>`;
                 }} else {{
-                    // Normal Stock (Not in Top 5) -> Show % Only
                     let colorClass = chgPct >= 0 ? 'normal-pct-green' : 'normal-pct-red';
                     tagHtml = `<span class="${{colorClass}}">${{pctStr}}</span>`;
                 }}
@@ -367,9 +423,12 @@ def generate_delivery_screener():
             const r = currentRowsData[index];
             if (!r) return;
 
-            document.getElementById("mSymbol").innerText = r[1];
+            const symbol = r[1];
+            const currentDate = r[0];
+
+            document.getElementById("mSymbol").innerText = symbol;
             
-            let tagHtml = `<span style="font-size: 11px; color: #64748b;">${{r[0]}}</span>`;
+            let tagHtml = `<span style="font-size: 11px; color: #64748b;">${{currentDate}}</span>`;
             let pctVal = r[17] > 0 ? `+${{r[17]}}%` : `${{r[17]}}%`;
             let rankTag = r[18];
             
@@ -395,6 +454,26 @@ def generate_delivery_screener():
             document.getElementById("mR7").innerText = `${{r[10]}}x (${{r[14].toLocaleString()}})`;
             document.getElementById("mR10").innerText = `${{r[11]}}x (${{r[15].toLocaleString()}})`;
 
+            // Populate 7 Days History Table
+            const histList = stockHistory[symbol] || [];
+            let currIdx = histList.findIndex(h => h.date === currentDate);
+            if (currIdx === -1) currIdx = histList.length - 1;
+
+            let startIdx = Math.max(0, currIdx - 6);
+            let recent7Days = histList.slice(startIdx, currIdx + 1).reverse();
+
+            let histBuffer = "";
+            recent7Days.forEach(h => {{
+                histBuffer += `<tr>
+                    <td><b>${{h.date}}</b></td>
+                    <td class="num">${{h.ttq.toLocaleString()}}</td>
+                    <td class="num">${{h.deliv.toLocaleString()}}</td>
+                    <td class="num">${{h.deliv_per}}%</td>
+                    <td class="num"><b style="color:#10b981;">${{h.spike}}x</b></td>
+                </tr>`;
+            }});
+
+            document.getElementById("mHistoryBody").innerHTML = histBuffer;
             document.getElementById("detailsModal").style.display = "flex";
         }}
 
@@ -442,7 +521,7 @@ def generate_delivery_screener():
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(html_content)
 
-    print("✅ `index.html` तिरछी लाइन और सामान्य स्टॉक्स के लिए सिर्फ % के साथ अपडेट हो गया!")
+    print("✅ `index.html` पॉपअप में हॉरिजॉन्टल लाइन और 7 दिन की हिस्ट्री के साथ अपडेट हो गया!")
 
 if __name__ == "__main__":
     generate_delivery_screener()
