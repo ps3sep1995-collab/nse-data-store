@@ -72,17 +72,21 @@ def generate_delivery_screener():
                     results.append([
                         str(d),                         # 0: Date
                         str(symbol),                    # 1: Symbol
-                        round(float(max_spike), 2),     # 2: Max Spike (Moved here)
-                        round(float(latest_row['CLOSE_PRICE']), 2), # 3: Close
+                        round(float(max_spike), 2),     # 2: Max Spike
+                        round(float(latest_row['CLOSE_PRICE']), 2), # 3: Close Price
                         int(latest_row['TTL_TRD_QNTY']),# 4: Traded Qty
-                        round(float(latest_row['TURNOVER_LACS']), 2), # 5: Turnover
-                        int(today_deliv),               # 6: Deliv Qty
-                        round(float(latest_row['DELIV_PER']), 2), # 7: Deliv %
+                        round(float(latest_row['TURNOVER_LACS']), 2), # 5: Turnover Lacs
+                        int(today_deliv),               # 6: Delivery Qty
+                        round(float(latest_row['DELIV_PER']), 2), # 7: Delivery %
                         round(float(r2), 2),            # 8: R2
                         round(float(r5), 2),            # 9: R5
                         round(float(r7), 2),            # 10: R7
                         round(float(r10), 2),           # 11: R10
-                        1 if is_2x_val else 0           # 12: Is2x
+                        int(avg_2d),                    # 12: Avg 2D
+                        int(avg_5d),                    # 13: Avg 5D
+                        int(avg_7d),                    # 14: Avg 7D
+                        int(avg_10d),                   # 15: Avg 10D
+                        1 if is_2x_val else 0           # 16: Is2x
                     ])
         date_wise_results[d] = sorted(results, key=lambda x: x[2], reverse=True)
 
@@ -106,14 +110,28 @@ def generate_delivery_screener():
         .search-box, .select-box, .date-input {{ padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12px; outline: none; }}
         .search-box {{ flex: 1; min-width: 130px; }}
         .table-responsive {{ width: 100%; overflow-x: auto; max-height: 70vh; }}
-        table {{ width: 100%; border-collapse: collapse; font-size: 12px; min-width: 1000px; }}
-        th, td {{ padding: 6px 8px; border-bottom: 1px solid #e2e8f0; text-align: left; }}
+        table {{ width: 100%; border-collapse: collapse; font-size: 12px; }}
+        th, td {{ padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: left; }}
         th {{ background: #10b981; color: white; cursor: pointer; font-size: 11px; position: sticky; top: 0; z-index: 10; }}
         tr:nth-child(even) {{ background: #f8fafc; }}
-        .badge {{ background: #ef4444; color: white; padding: 2px 4px; border-radius: 3px; font-weight: bold; font-size: 10px; }}
-        .badge-green {{ background: #10b981; color: white; padding: 2px 4px; border-radius: 3px; font-weight: bold; font-size: 10px; }}
+        tr.clickable-row {{ cursor: pointer; }}
+        tr.clickable-row:hover {{ background: #e2e8f0; }}
+        .badge-green {{ background: #10b981; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 11px; }}
         .num {{ text-align: right; }}
         .filter-group {{ display: flex; gap: 4px; align-items: center; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 11px; }}
+
+        /* Popup Modal Styling */
+        .modal-overlay {{ display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; padding: 12px; box-sizing: border-box; }}
+        .modal-box {{ background: #fff; width: 100%; max-width: 420px; border-radius: 12px; padding: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative; animation: popIn 0.2s ease-out; }}
+        @keyframes popIn {{ from {{ transform: scale(0.9); opacity: 0; }} to {{ transform: scale(1); opacity: 1; }} }}
+        .modal-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px; margin-bottom: 12px; }}
+        .modal-title {{ font-size: 16px; font-weight: bold; color: #0f172a; }}
+        .close-btn {{ background: #f1f5f9; border: none; font-size: 16px; font-weight: bold; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; color: #64748b; }}
+        .detail-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px; }}
+        .detail-item {{ background: #f8fafc; padding: 8px; border-radius: 6px; border: 1px solid #e2e8f0; }}
+        .detail-label {{ color: #64748b; font-size: 10px; text-transform: uppercase; margin-bottom: 2px; }}
+        .detail-value {{ font-size: 13px; font-weight: bold; color: #1e293b; }}
+        .highlight {{ color: #10b981; }}
     </style>
 </head>
 <body>
@@ -153,15 +171,7 @@ def generate_delivery_screener():
                         <th onclick="sortTable(0)">Date ↕</th>
                         <th onclick="sortTable(1)">Symbol ↕</th>
                         <th class="num" onclick="sortTable(2, true)">Max Spike ↕</th>
-                        <th class="num" onclick="sortTable(3, true)">Close ↕</th>
-                        <th class="num" onclick="sortTable(4, true)">Traded Qty ↕</th>
-                        <th class="num" onclick="sortTable(5, true)">Turnover(L) ↕</th>
-                        <th class="num" onclick="sortTable(6, true)">Deliv Qty ↕</th>
-                        <th class="num" onclick="sortTable(7, true)">Deliv % ↕</th>
-                        <th class="num" onclick="sortTable(8, true)">2D Ratio ↕</th>
-                        <th class="num" onclick="sortTable(9, true)">5D Ratio ↕</th>
-                        <th class="num" onclick="sortTable(10, true)">7D Ratio ↕</th>
-                        <th class="num" onclick="sortTable(11, true)">10D Ratio ↕</th>
+                        <th class="num" onclick="sortTable(3, true)">Close (₹) ↕</th>
                     </tr>
                 </thead>
                 <tbody id="tableBody"></tbody>
@@ -169,8 +179,34 @@ def generate_delivery_screener():
         </div>
     </div>
 
+    <!-- Details Modal -->
+    <div id="detailsModal" class="modal-overlay" onclick="closeModal(event)">
+        <div class="modal-box" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div>
+                    <span id="mSymbol" class="modal-title">SYMBOL</span>
+                    <span id="mDate" style="font-size: 11px; color: #64748b; margin-left: 6px;">(YYYY-MM-DD)</span>
+                </div>
+                <button class="close-btn" onclick="hideModal()">✕</button>
+            </div>
+            <div class="detail-grid">
+                <div class="detail-item"><div class="detail-label">Close Price</div><div id="mClose" class="detail-value">₹0.00</div></div>
+                <div class="detail-item"><div class="detail-label">Max Spike</div><div id="mSpike" class="detail-value highlight">0x</div></div>
+                <div class="detail-item"><div class="detail-label">Delivery Qty</div><div id="mDelivQty" class="detail-value">0</div></div>
+                <div class="detail-item"><div class="detail-label">Delivery %</div><div id="mDelivPer" class="detail-value">0%</div></div>
+                <div class="detail-item"><div class="detail-label">Traded Qty</div><div id="mTradedQty" class="detail-value">0</div></div>
+                <div class="detail-item"><div class="detail-label">Turnover (Lacs)</div><div id="mTurnover" class="detail-value">₹0</div></div>
+                <div class="detail-item"><div class="detail-label">2D Ratio (Avg)</div><div id="mR2" class="detail-value">0x (0)</div></div>
+                <div class="detail-item"><div class="detail-label">5D Ratio (Avg)</div><div id="mR5" class="detail-value">0x (0)</div></div>
+                <div class="detail-item"><div class="detail-label">7D Ratio (Avg)</div><div id="mR7" class="detail-value">0x (0)</div></div>
+                <div class="detail-item"><div class="detail-label">10D Ratio (Avg)</div><div id="mR10" class="detail-value">0x (0)</div></div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const storeData = {json_data};
+        let currentRowsData = [];
 
         function renderData() {{
             const selectedSymbol = document.getElementById("singleSymbolSelect").value;
@@ -180,56 +216,74 @@ def generate_delivery_screener():
             const tbody = document.getElementById("tableBody");
             
             let htmlBuffer = "";
-            let combinedRows = [];
+            currentRowsData = [];
 
             Object.keys(storeData).forEach(date => {{
                 if (date >= startDate && date <= endDate) {{
                     storeData[date].forEach(r => {{
                         let matchSymbol = (selectedSymbol === "ALL" || r[1] === selectedSymbol);
-                        let matchMode = (selectedSymbol !== "ALL") ? true : (mode === "all" || r[12] === 1);
+                        let matchMode = (selectedSymbol !== "ALL") ? true : (mode === "all" || r[16] === 1);
 
                         if (matchSymbol && matchMode) {{
-                            combinedRows.push(r);
+                            currentRowsData.push(r);
                         }}
                     }});
                 }}
             }});
 
             if (selectedSymbol !== "ALL") {{
-                combinedRows.sort((a, b) => b[0].localeCompare(a[0]));
+                currentRowsData.sort((a, b) => b[0].localeCompare(a[0]));
             }} else {{
-                combinedRows.sort((a, b) => b[2] - a[2]);
+                currentRowsData.sort((a, b) => b[2] - a[2]);
             }}
 
-            if (combinedRows.length === 0) {{
-                tbody.innerHTML = '<tr><td colspan="12" style="text-align:center; color:#94a3b8;">कोई डेटा नहीं मिला।</td></tr>';
+            if (currentRowsData.length === 0) {{
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#94a3b8;">कोई डेटा नहीं मिला।</td></tr>';
                 return;
             }}
 
-            combinedRows.slice(0, 200).forEach(r => {{
-                let r2_badge = r[8] >= 2.0 ? `<span class="badge">${{r[8]}}x</span>` : `${{r[8]}}x`;
-                let r5_badge = r[9] >= 2.0 ? `<span class="badge">${{r[9]}}x</span>` : `${{r[9]}}x`;
-                let r7_badge = r[10] >= 2.0 ? `<span class="badge">${{r[10]}}x</span>` : `${{r[10]}}x`;
-                let r10_badge = r[11] >= 2.0 ? `<span class="badge">${{r[11]}}x</span>` : `${{r[11]}}x`;
-
-                htmlBuffer += `<tr>
+            currentRowsData.slice(0, 200).forEach((r, idx) => {{
+                htmlBuffer += `<tr class="clickable-row" onclick="showModal(${{idx}})">
                     <td><b>${{r[0]}}</b></td>
                     <td><b>${{r[1]}}</b></td>
                     <td class="num"><span class="badge-green">${{r[2]}}x</span></td>
                     <td class="num">${{r[3].toFixed(2)}}</td>
-                    <td class="num">${{r[4].toLocaleString()}}</td>
-                    <td class="num">${{r[5].toLocaleString()}}</td>
-                    <td class="num">${{r[6].toLocaleString()}}</td>
-                    <td class="num"><b>${{r[7].toFixed(2)}}%</b></td>
-                    <td class="num">${{r2_badge}}</td>
-                    <td class="num">${{r5_badge}}</td>
-                    <td class="num">${{r7_badge}}</td>
-                    <td class="num">${{r10_badge}}</td>
                 </tr>`;
             }});
 
             tbody.innerHTML = htmlBuffer;
             filterTable();
+        }}
+
+        function showModal(index) {{
+            const r = currentRowsData[index];
+            if (!r) return;
+
+            document.getElementById("mSymbol").innerText = r[1];
+            document.getElementById("mDate").innerText = `(${{r[0]}})`;
+            document.getElementById("mClose").innerText = `₹${{r[3].toFixed(2)}}`;
+            document.getElementById("mSpike").innerText = `${{r[2]}}x`;
+            document.getElementById("mDelivQty").innerText = r[6].toLocaleString();
+            document.getElementById("mDelivPer").innerText = `${{r[7].toFixed(2)}}%`;
+            document.getElementById("mTradedQty").innerText = r[4].toLocaleString();
+            document.getElementById("mTurnover").innerText = `₹${{r[5].toLocaleString()}}`;
+            
+            document.getElementById("mR2").innerText = `${{r[8]}}x (${{r[12].toLocaleString()}})`;
+            document.getElementById("mR5").innerText = `${{r[9]}}x (${{r[13].toLocaleString()}})`;
+            document.getElementById("mR7").innerText = `${{r[10]}}x (${{r[14].toLocaleString()}})`;
+            document.getElementById("mR10").innerText = `${{r[11]}}x (${{r[15].toLocaleString()}})`;
+
+            document.getElementById("detailsModal").style.display = "flex";
+        }}
+
+        function hideModal() {{
+            document.getElementById("detailsModal").style.display = "none";
+        }}
+
+        function closeModal(event) {{
+            if (event.target.id === "detailsModal") {{
+                hideModal();
+            }}
         }}
 
         function filterTable() {{
@@ -266,7 +320,7 @@ def generate_delivery_screener():
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(html_content)
 
-    print("✅ `index.html` सफलतापूर्वक `Max Spike` को तीसरे स्थान पर रखकर तैयार हो गया!")
+    print("✅ `index.html` Popup Modal फीचर के साथ अपडेट हो गया!")
 
 if __name__ == "__main__":
     generate_delivery_screener()
