@@ -41,7 +41,6 @@ def generate_delivery_screener():
     sorted_dates = sorted(list(available_dates), reverse=True)
     sorted_symbols = sorted(list(all_symbols_set))
     
-    # 15 दिनों तक का डेटा ही रखेंगे ताकि साइज लाइट रहे
     target_dates = sorted_dates[:15]
     date_wise_results = {}
     
@@ -70,23 +69,22 @@ def generate_delivery_screener():
                     max_spike = max(r2, r5, r7, r10)
                     is_2x_val = bool(r2 >= 2.0 or r5 >= 2.0 or r7 >= 2.0 or r10 >= 2.0)
 
-                    # लाइटवेट डेटा की कुंजी
                     results.append([
                         str(d),                         # 0: Date
                         str(symbol),                    # 1: Symbol
-                        round(float(latest_row['CLOSE_PRICE']), 2), # 2: Close
-                        int(latest_row['TTL_TRD_QNTY']),# 3: Traded Qty
-                        round(float(latest_row['TURNOVER_LACS']), 2), # 4: Turnover
-                        int(today_deliv),               # 5: Deliv Qty
-                        round(float(latest_row['DELIV_PER']), 2), # 6: Deliv %
-                        round(float(r2), 2),            # 7: R2
-                        round(float(r5), 2),            # 8: R5
-                        round(float(r7), 2),            # 9: R7
-                        round(float(r10), 2),           # 10: R10
-                        round(float(max_spike), 2),      # 11: Max Spike
+                        round(float(max_spike), 2),     # 2: Max Spike (Moved here)
+                        round(float(latest_row['CLOSE_PRICE']), 2), # 3: Close
+                        int(latest_row['TTL_TRD_QNTY']),# 4: Traded Qty
+                        round(float(latest_row['TURNOVER_LACS']), 2), # 5: Turnover
+                        int(today_deliv),               # 6: Deliv Qty
+                        round(float(latest_row['DELIV_PER']), 2), # 7: Deliv %
+                        round(float(r2), 2),            # 8: R2
+                        round(float(r5), 2),            # 9: R5
+                        round(float(r7), 2),            # 10: R7
+                        round(float(r10), 2),           # 11: R10
                         1 if is_2x_val else 0           # 12: Is2x
                     ])
-        date_wise_results[d] = sorted(results, key=lambda x: x[11], reverse=True)
+        date_wise_results[d] = sorted(results, key=lambda x: x[2], reverse=True)
 
     json_data = json.dumps(date_wise_results, separators=(',', ':'))
     min_date = target_dates[-1] if target_dates else ""
@@ -154,16 +152,16 @@ def generate_delivery_screener():
                     <tr>
                         <th onclick="sortTable(0)">Date ↕</th>
                         <th onclick="sortTable(1)">Symbol ↕</th>
-                        <th class="num" onclick="sortTable(11, true)">Max Spike ↕</th>
-                        <th class="num" onclick="sortTable(2, true)">Close ↕</th>
-                        <th class="num" onclick="sortTable(3, true)">Traded Qty ↕</th>
-                        <th class="num" onclick="sortTable(4, true)">Turnover(L) ↕</th>
-                        <th class="num" onclick="sortTable(5, true)">Deliv Qty ↕</th>
-                        <th class="num" onclick="sortTable(6, true)">Deliv % ↕</th>
-                        <th class="num" onclick="sortTable(7, true)">2D Ratio ↕</th>
-                        <th class="num" onclick="sortTable(8, true)">5D Ratio ↕</th>
-                        <th class="num" onclick="sortTable(9, true)">7D Ratio ↕</th>
-                        <th class="num" onclick="sortTable(10, true)">10D Ratio ↕</th>
+                        <th class="num" onclick="sortTable(2, true)">Max Spike ↕</th>
+                        <th class="num" onclick="sortTable(3, true)">Close ↕</th>
+                        <th class="num" onclick="sortTable(4, true)">Traded Qty ↕</th>
+                        <th class="num" onclick="sortTable(5, true)">Turnover(L) ↕</th>
+                        <th class="num" onclick="sortTable(6, true)">Deliv Qty ↕</th>
+                        <th class="num" onclick="sortTable(7, true)">Deliv % ↕</th>
+                        <th class="num" onclick="sortTable(8, true)">2D Ratio ↕</th>
+                        <th class="num" onclick="sortTable(9, true)">5D Ratio ↕</th>
+                        <th class="num" onclick="sortTable(10, true)">7D Ratio ↕</th>
+                        <th class="num" onclick="sortTable(11, true)">10D Ratio ↕</th>
                     </tr>
                 </thead>
                 <tbody id="tableBody"></tbody>
@@ -200,7 +198,7 @@ def generate_delivery_screener():
             if (selectedSymbol !== "ALL") {{
                 combinedRows.sort((a, b) => b[0].localeCompare(a[0]));
             }} else {{
-                combinedRows.sort((a, b) => b[11] - a[11]);
+                combinedRows.sort((a, b) => b[2] - a[2]);
             }}
 
             if (combinedRows.length === 0) {{
@@ -208,26 +206,25 @@ def generate_delivery_screener():
                 return;
             }}
 
-            // केवल पहले 200 रिकॉर्ड्स रेंडर करें ताकि ब्राउज़र हैंग न हो
             combinedRows.slice(0, 200).forEach(r => {{
-                let r2_badge = r[7] >= 2.0 ? `<span class="badge">${{r[7]}}x</span>` : `${{r[7]}}x`;
-                let r5_badge = r[8] >= 2.0 ? `<span class="badge">${{r[8]}}x</span>` : `${{r[8]}}x`;
-                let r7_badge = r[9] >= 2.0 ? `<span class="badge">${{r[9]}}x</span>` : `${{r[9]}}x`;
-                let r10_badge = r[10] >= 2.0 ? `<span class="badge">${{r[10]}}x</span>` : `${{r[10]}}x`;
+                let r2_badge = r[8] >= 2.0 ? `<span class="badge">${{r[8]}}x</span>` : `${{r[8]}}x`;
+                let r5_badge = r[9] >= 2.0 ? `<span class="badge">${{r[9]}}x</span>` : `${{r[9]}}x`;
+                let r7_badge = r[10] >= 2.0 ? `<span class="badge">${{r[10]}}x</span>` : `${{r[10]}}x`;
+                let r10_badge = r[11] >= 2.0 ? `<span class="badge">${{r[11]}}x</span>` : `${{r[11]}}x`;
 
                 htmlBuffer += `<tr>
                     <td><b>${{r[0]}}</b></td>
                     <td><b>${{r[1]}}</b></td>
-                    <td class="num">${{r[2].toFixed(2)}}</td>
-                    <td class="num">${{r[3].toLocaleString()}}</td>
+                    <td class="num"><span class="badge-green">${{r[2]}}x</span></td>
+                    <td class="num">${{r[3].toFixed(2)}}</td>
                     <td class="num">${{r[4].toLocaleString()}}</td>
                     <td class="num">${{r[5].toLocaleString()}}</td>
-                    <td class="num"><b>${{r[6].toFixed(2)}}%</b></td>
+                    <td class="num">${{r[6].toLocaleString()}}</td>
+                    <td class="num"><b>${{r[7].toFixed(2)}}%</b></td>
                     <td class="num">${{r2_badge}}</td>
                     <td class="num">${{r5_badge}}</td>
                     <td class="num">${{r7_badge}}</td>
                     <td class="num">${{r10_badge}}</td>
-                    <td class="num"><span class="badge-green">${{r[11]}}x</span></td>
                 </tr>`;
             }});
 
@@ -269,7 +266,7 @@ def generate_delivery_screener():
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(html_content)
 
-    print("✅ `index.html` सुपर-फास्ट और नो-हैंड कोड के साथ अपडेट हो गया!")
+    print("✅ `index.html` सफलतापूर्वक `Max Spike` को तीसरे स्थान पर रखकर तैयार हो गया!")
 
 if __name__ == "__main__":
     generate_delivery_screener()
